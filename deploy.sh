@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Flattens public/index.php + src/ (the layout this repo uses for portability)
-# into the flat layout this box's lighttpd expects (index.php and src/ as
-# siblings, no public/ subdir — matches the other apps under /var/www/html).
+# Flattens public/{index,mcp}.php + src/ (the layout this repo uses for
+# portability) into the flat layout this box's lighttpd expects (index.php,
+# mcp.php, and src/ as siblings, no public/ subdir — matches the other apps
+# under /var/www/html).
 # Never touches config.php on the target: that holds the live bearer token
 # and isn't part of the repo.
 set -euo pipefail
@@ -21,8 +22,10 @@ trap 'rm -rf "$STAGE_DIR"' EXIT
 chmod 755 "$STAGE_DIR"
 
 cp -r "$REPO_DIR/src" "$STAGE_DIR/src"
-sed "s#__DIR__ . '/../src/autoload.php'#__DIR__ . '/src/autoload.php'#" \
-    "$REPO_DIR/public/index.php" > "$STAGE_DIR/index.php"
+for f in index.php mcp.php; do
+    sed "s#__DIR__ . '/../src/autoload.php'#__DIR__ . '/src/autoload.php'#" \
+        "$REPO_DIR/public/$f" > "$STAGE_DIR/$f"
+done
 
 # --no-perms/--no-owner/--no-group: don't let rsync overwrite DEPLOY_DIR's own
 # mode/ownership (needed for www-data to traverse it) with the staging dir's.

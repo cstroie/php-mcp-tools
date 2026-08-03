@@ -13,6 +13,7 @@ declare(strict_types=1);
  */
 
 $baseUrl = rtrim(getenv('MCP_URL') ?: 'http://127.0.0.1:8080/', '/') . '/';
+$rpcUrl = $baseUrl . 'mcp.php';
 $token = getenv('MCP_TOKEN') ?: '';
 
 if ($token === '') {
@@ -95,12 +96,12 @@ function rpc(string $baseUrl, string $token, string $method, ?array $params = nu
     return ['status' => $resp['status'], 'json' => $decoded, 'raw' => $resp['body']];
 }
 
-echo "Target: {$baseUrl}\n\n";
+echo "Target: {$baseUrl} (RPC endpoint: {$rpcUrl})\n\n";
 
 echo "Health check\n";
-$health = httpRequest($baseUrl . '?health=1', 'GET');
-check('GET ?health=1 returns 200', $health['status'] === 200, "got {$health['status']}");
-check('GET ?health=1 body is "ok"', trim($health['body']) === 'ok', "got '" . trim($health['body']) . "'");
+$health = httpRequest($rpcUrl . '?health=1', 'GET');
+check('GET mcp.php?health=1 returns 200', $health['status'] === 200, "got {$health['status']}");
+check('GET mcp.php?health=1 body is "ok"', trim($health['body']) === 'ok', "got '" . trim($health['body']) . "'");
 
 echo "\nSetup guide\n";
 $guide = httpRequest($baseUrl, 'GET');
@@ -108,19 +109,20 @@ check('GET / returns 200', $guide['status'] === 200, "got {$guide['status']}");
 check('GET / renders HTML guide', strpos($guide['body'], '<html') !== false, "got '" . substr($guide['body'], 0, 60) . "'");
 check('guide lists web_fetch', strpos($guide['body'], 'web_fetch') !== false);
 check('guide lists web_search', strpos($guide['body'], 'web_search') !== false);
+check('guide points at the mcp.php endpoint', strpos($guide['body'], 'mcp.php') !== false);
 
 echo "\nAuth\n";
-$noAuth = httpRequest($baseUrl, 'POST', json_encode(['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list']));
+$noAuth = httpRequest($rpcUrl, 'POST', json_encode(['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list']));
 check('missing bearer token -> 401', $noAuth['status'] === 401, "got {$noAuth['status']}");
 
-$badAuth = httpRequest($baseUrl, 'POST', json_encode(['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list']), 'wrong-token');
+$badAuth = httpRequest($rpcUrl, 'POST', json_encode(['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list']), 'wrong-token');
 check('wrong bearer token -> 401', $badAuth['status'] === 401, "got {$badAuth['status']}");
 
 echo "\nProtocol\n";
-$malformed = httpRequest($baseUrl, 'POST', 'not json', $token);
+$malformed = httpRequest($rpcUrl, 'POST', 'not json', $token);
 check('malformed JSON -> 400', $malformed['status'] === 400, "got {$malformed['status']}");
 
-$init = rpc($baseUrl, $token, 'initialize', []);
+$init = rpc($rpcUrl, $token, 'initialize', []);
 check('initialize succeeds', isset($init['json']['result']));
 check(
     'initialize reports server name',
@@ -129,14 +131,14 @@ check(
 );
 
 $notified = httpRequest(
-    $baseUrl,
+    $rpcUrl,
     'POST',
     json_encode(['jsonrpc' => '2.0', 'method' => 'notifications/initialized']),
     $token
 );
 check('notifications/initialized -> 204', $notified['status'] === 204, "got {$notified['status']}");
 
-$unknownMethod = rpc($baseUrl, $token, 'nonexistent/method');
+$unknownMethod = rpc($rpcUrl, $token, 'nonexistent/method');
 check(
     'unknown method -> JSON-RPC error',
     isset($unknownMethod['json']['error']['code']),
@@ -144,7 +146,7 @@ check(
 );
 
 echo "\ntools/list\n";
-$list = rpc($baseUrl, $token, 'tools/list');
+$list = rpc($rpcUrl, $token, 'tools/list');
 $toolNames = array_column($list['json']['result']['tools'] ?? [], 'name');
 check('lists web_fetch', in_array('web_fetch', $toolNames, true), implode(',', $toolNames));
 check('lists web_search', in_array('web_search', $toolNames, true), implode(',', $toolNames));
@@ -152,7 +154,7 @@ check('lists feed_discover', in_array('feed_discover', $toolNames, true), implod
 check('lists feed_fetch', in_array('feed_fetch', $toolNames, true), implode(',', $toolNames));
 
 echo "\ntools/call web_fetch\n";
-$fetch = rpc($baseUrl, $token, 'tools/call', [
+$fetch = rpc($rpcUrl, $token, 'tools/call', [
     'name' => 'web_fetch',
     'arguments' => ['url' => 'https://example.com', 'max_length' => 500],
 ]);
@@ -160,20 +162,20 @@ $fetchText = $fetch['json']['result']['content'][0]['text'] ?? '';
 check('fetches example.com', strpos($fetchText, 'Example Domain') !== false, substr($fetchText, 0, 120));
 check('fetch is not flagged as error', empty($fetch['json']['result']['isError']));
 
-$ssrf = rpc($baseUrl, $token, 'tools/call', [
+$ssrf = rpc($rpcUrl, $token, 'tools/call', [
     'name' => 'web_fetch',
     'arguments' => ['url' => 'http://127.0.0.1/'],
 ]);
 check('blocks loopback URL', ($ssrf['json']['result']['isError'] ?? false) === true, json_encode($ssrf['json']));
 
-$badScheme = rpc($baseUrl, $token, 'tools/call', [
+$badScheme = rpc($rpcUrl, $token, 'tools/call', [
     'name' => 'web_fetch',
     'arguments' => ['url' => 'file:///etc/passwd'],
 ]);
 check('blocks non-http(s) scheme', ($badScheme['json']['result']['isError'] ?? false) === true, json_encode($badScheme['json']));
 
 echo "\ntools/call web_search\n";
-$search = rpc($baseUrl, $token, 'tools/call', [
+$search = rpc($rpcUrl, $token, 'tools/call', [
     'name' => 'web_search',
     'arguments' => ['query' => 'PHP 7.4 release date', 'max_results' => 3],
 ]);
@@ -182,7 +184,7 @@ check('search returns non-empty content', trim($searchText) !== '', 'empty respo
 check('search is not flagged as error', empty($search['json']['result']['isError']), $searchText);
 
 echo "\ntools/call feed_discover\n";
-$discover = rpc($baseUrl, $token, 'tools/call', [
+$discover = rpc($rpcUrl, $token, 'tools/call', [
     'name' => 'feed_discover',
     'arguments' => ['url' => 'https://www.php.net/'],
 ]);
@@ -198,7 +200,7 @@ check(
 );
 
 echo "\ntools/call feed_fetch\n";
-$feedFetch = rpc($baseUrl, $token, 'tools/call', [
+$feedFetch = rpc($rpcUrl, $token, 'tools/call', [
     'name' => 'feed_fetch',
     'arguments' => ['url' => 'https://www.php.net/feed.atom', 'max_items' => 3],
 ]);
@@ -217,7 +219,7 @@ check(
     $feedFetchText
 );
 
-$feedFetchSsrf = rpc($baseUrl, $token, 'tools/call', [
+$feedFetchSsrf = rpc($rpcUrl, $token, 'tools/call', [
     'name' => 'feed_fetch',
     'arguments' => ['url' => 'http://127.0.0.1/'],
 ]);
@@ -228,10 +230,10 @@ check(
 );
 
 echo "\ntools/call errors\n";
-$unknownTool = rpc($baseUrl, $token, 'tools/call', ['name' => 'no_such_tool', 'arguments' => []]);
+$unknownTool = rpc($rpcUrl, $token, 'tools/call', ['name' => 'no_such_tool', 'arguments' => []]);
 check('unknown tool -> JSON-RPC error', isset($unknownTool['json']['error']['code']), json_encode($unknownTool['json']));
 
-$missingArg = rpc($baseUrl, $token, 'tools/call', ['name' => 'web_fetch', 'arguments' => []]);
+$missingArg = rpc($rpcUrl, $token, 'tools/call', ['name' => 'web_fetch', 'arguments' => []]);
 check('missing required arg -> isError', ($missingArg['json']['result']['isError'] ?? false) === true, json_encode($missingArg['json']));
 
 echo "\n{$passed} passed, {$failures} failed\n";

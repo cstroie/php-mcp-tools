@@ -15,7 +15,8 @@ declare(strict_types=1);
  *   mcp-cli.php raw <method> ['{"param":"value"}']
  *
  * Config: --url=<url> / --token=<token> flags, or MCP_URL / MCP_TOKEN env vars.
- * MCP_URL defaults to http://127.0.0.1:8080/.
+ * MCP_URL is the mcp.php endpoint (same URL you'd put in an MCP client config),
+ * defaulting to http://127.0.0.1:8080/mcp.php.
  */
 
 function usage(): void
@@ -31,7 +32,7 @@ function usage(): void
       raw <method> [json-params] Send an arbitrary JSON-RPC method
 
     Config (flags override env vars):
-      --url=URL      MCP server endpoint (env: MCP_URL, default http://127.0.0.1:8080/)
+      --url=URL      MCP server endpoint (env: MCP_URL, default http://127.0.0.1:8080/mcp.php)
       --token=TOKEN  Bearer token (env: MCP_TOKEN)
 
     Examples:
@@ -143,7 +144,7 @@ if (isset($options['help']) || count($positional) === 0) {
     exit(isset($options['help']) ? 0 : 1);
 }
 
-$baseUrl = rtrim($options['url'] ?? getenv('MCP_URL') ?: 'http://127.0.0.1:8080/', '/') . '/';
+$baseUrl = $options['url'] ?? getenv('MCP_URL') ?: 'http://127.0.0.1:8080/mcp.php';
 $token = $options['token'] ?? (getenv('MCP_TOKEN') ?: null);
 
 $command = array_shift($positional);

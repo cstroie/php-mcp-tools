@@ -6,8 +6,10 @@ conventions, and the things that are easy to get wrong here.
 
 ## What this is
 
-A dependency-free PHP 7.4 MCP server exposed over HTTP (JSON-RPC 2.0), not stdio. Single front
-controller `public/index.php`, tools live in `src/Tools/`, each implementing
+A dependency-free PHP 7.4 MCP server exposed over HTTP (JSON-RPC 2.0), not stdio. Two front
+controllers in `public/`: `mcp.php` (the real endpoint — auth, CORS, JSON-RPC dispatch) and
+`index.php` (a plain help/info page, no auth). Both build their tool list from the same
+`Mcp\Bootstrap::buildToolRegistry()`. Tools live in `src/Tools/`, each implementing
 `Mcp\Tools\ToolInterface`. No Composer, no vendored libraries — stick to PHP 7.4 core + the
 `curl`/`dom`/`simplexml` extensions. Do not introduce a dependency manager or third-party package
 without asking first; "zero dependencies" is a deliberate project constraint, not an oversight.
@@ -38,8 +40,9 @@ built and tested. Short version:
 2. If it fetches a caller-supplied URL, go through `Mcp\Http\SafeFetcher`, never raw `curl`. It's
    the one place SSRF protection (private/loopback IP rejection, DNS-pinned redirects, size caps)
    lives; skipping it on a new tool is a real vulnerability, not a style nit.
-3. Register in `public/index.php` (`$tools->register(new YourTool($config));`) — that's the only
-   other file that needs editing; `ToolRegistry`/`Server`/`Guide` are tool-agnostic.
+3. Register in `src/Bootstrap.php` (`$tools->register(new YourTool($config));`) — that's the only
+   other file that needs editing; both `public/mcp.php` and `public/index.php` read from it, and
+   `ToolRegistry`/`Server`/`Guide` are all tool-agnostic.
 4. Unit tests in `tests/YourToolTest.php`, wired into `tests/run.php`, using the shared
    `check()`/`invokePrivate()` helpers already defined there.
 5. Live-test coverage added to `tests/live.php`: a `tools/list` membership check, a real
@@ -64,9 +67,17 @@ built and tested. Short version:
   JSON-RPC response with `isError: true` inside the content envelope. A JSON-RPC-level error
   (`error: {code, message}` at the top level) is reserved for protocol problems — unknown method,
   malformed request — not tool failures. Don't blur these.
-- **The guide page (`GET /`, `src/Guide.php`) is generated from the live `ToolRegistry`**, not
+- **The guide page (`index.php`, `src/Guide.php`) is generated from the live `ToolRegistry`**, not
   hand-maintained — if `tools/list` is right, the guide is right. Don't add a second place that
   lists tool names/descriptions.
+- **`mcp.php` and `index.php` are deliberately separate files, not one file with an if-branch.**
+  `mcp.php` is the only one with auth/CORS; `index.php` is unauthenticated on purpose (it's just
+  static-ish info) — don't merge them back into one router, and don't add auth to `index.php` or
+  drop auth from `mcp.php`.
+- **`MCP_URL` means different things in different scripts** — in `bin/mcp-cli.php` and
+  `mcp.json.example` it's the `mcp.php` endpoint itself (what a real MCP client would use); in
+  `tests/live.php` it's the *site root*, because that script needs to check `index.php` too and
+  appends `/mcp.php` itself for the JSON-RPC calls. Keep this distinction when editing either.
 - **This box's lighttpd has one global document root** (`/var/www/html`) with no per-app vhost —
   that's why `deploy.sh` flattens `public/` away instead of the repo being served with its natural
   `public/`-as-docroot layout. If you ever deploy somewhere with a real per-app document root,

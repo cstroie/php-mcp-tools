@@ -33,21 +33,22 @@ Local dev:
 php -S 127.0.0.1:8080 -t public
 ```
 
-Production: point PHP-FPM/Apache/Nginx's document root at `public/`, with all requests routed to
-`public/index.php` (it's the only web-exposed file — everything else lives outside the web root
-or is otherwise not directly requestable).
+Production: point PHP-FPM/Apache/Nginx's document root at `public/`. Two files there are
+web-exposed: `public/mcp.php` (the actual MCP endpoint — auth, CORS, JSON-RPC) and
+`public/index.php` (a plain-English help/info page, no auth). Everything else lives outside the
+web root or is otherwise not directly requestable.
 
 ### deploy.sh
 
 If your server can't give this app its own document root (e.g. a single shared lighttpd/Apache
 docroot serving several apps as sibling directories, each with everything flattened at the top
-level — no separate `public/`), `deploy.sh` bridges the gap: it flattens `public/index.php` +
-`src/` into a target directory, leaving `config.php` there untouched.
+level — no separate `public/`), `deploy.sh` bridges the gap: it flattens `public/index.php`,
+`public/mcp.php`, and `src/` into a target directory, leaving `config.php` there untouched.
 
 ```bash
 sudo mkdir -p /var/www/html/mcp-tools && sudo chown "$(id -un):$(id -gn)" /var/www/html/mcp-tools
 cp config.php.example /var/www/html/mcp-tools/config.php   # first time only; then edit the token
-./deploy.sh                                                  # re-run after every change to src/ or public/index.php
+./deploy.sh                                                  # re-run after every change to src/ or public/*.php
 ```
 
 Override the target with `DEPLOY_DIR=/some/other/path ./deploy.sh`. The script preserves the
@@ -56,30 +57,34 @@ doesn't accidentally lock the web server out — see the comment in `deploy.sh` 
 
 ## Protocol
 
-JSON-RPC 2.0 over `POST /`.
+Two web-exposed endpoints (both in `public/`):
 
-`GET /` behaves as a small router of its own (see `public/index.php`):
-- `GET /?health=1` → unauthenticated, plain-text `ok` — for monitoring scripts / load balancers.
-- `GET /` (anything else, e.g. opening the URL in a browser) → an HTML setup guide: the endpoint
-  URL, the auth header format, an example `curl` call, and the live `tools/list` output (built
-  from the same `ToolRegistry` the server itself uses, via `src/Guide.php` — it can't drift out of
-  sync with the real tool list).
+- **`mcp.php`** — the actual MCP endpoint. JSON-RPC 2.0 over `POST`. Every `POST` requires
+  `Authorization: Bearer <token>`. `GET mcp.php?health=1` is an unauthenticated, plain-text `ok`
+  health check for monitoring scripts / load balancers; any other `GET` just returns a one-line
+  plain-text pointer at `index.php` (browsers landing here directly aren't shown an error, but
+  this file doesn't render the guide itself — see below).
+- **`index.php`** — a plain-English, unauthenticated HTML help page: the `mcp.php` endpoint URL,
+  the auth header format, an example `curl` call, a ready-to-paste client JSON config, and the
+  live `tools/list` output. Built from the same `ToolRegistry` the server itself uses via
+  `src/Guide.php`, so it can't drift out of sync with the real tool list. This is what you land on
+  opening the site root in a browser (`index-file.names` picks it as the default document).
 
-Every `POST` requires `Authorization: Bearer <token>`.
+Supported JSON-RPC methods on `mcp.php`: `initialize`, `notifications/initialized`, `tools/list`,
+`tools/call`.
 
-Supported JSON-RPC methods: `initialize`, `notifications/initialized`, `tools/list`, `tools/call`.
-
-CORS is enabled by default (`Access-Control-Allow-Origin: *`, `OPTIONS` preflight handled) since
-browser-based MCP clients are common and a custom `Authorization` header always triggers a
-preflight request — without this, browser clients fail with "Failed to fetch" and no other error.
-Set `cors_allow_origin` in `config.php` to a specific origin instead of `*` if needed; the bearer
-token is still required either way, this only controls which pages' JS is allowed to *see* the
-response.
+CORS is enabled by default on `mcp.php` (`Access-Control-Allow-Origin: *`, `OPTIONS` preflight
+handled) since browser-based MCP clients are common and a custom `Authorization` header always
+triggers a preflight request — without this, browser clients fail with "Failed to fetch" and no
+other error. Set `cors_allow_origin` in `config.php` to a specific origin instead of `*` if needed;
+the bearer token is still required either way, this only controls which pages' JS is allowed to
+*see* the response. `index.php` doesn't set CORS headers — it's not meant to be fetched
+cross-origin by client code, only opened directly.
 
 Example:
 
 ```bash
-curl -X POST http://127.0.0.1:8080/ \
+curl -X POST http://127.0.0.1:8080/mcp.php \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"web_fetch","arguments":{"url":"https://example.com"}}}'
@@ -95,7 +100,7 @@ For MCP clients that read a JSON config (Claude Code, Claude Desktop, and others
   "mcpServers": {
     "php-mcp-tools": {
       "type": "http",
-      "url": "https://your-host/mcp-tools/",
+      "url": "https://your-host/mcp-tools/mcp.php",
       "headers": {
         "Authorization": "Bearer <token>"
       }
@@ -108,7 +113,7 @@ Merge that `mcpServers` entry into the client's own config file (e.g. `.mcp.json
 Claude Desktop's config). Claude Code can also add it directly from the CLI:
 
 ```bash
-claude mcp add-json php-mcp-tools '{"type":"http","url":"https://your-host/mcp-tools/","headers":{"Authorization":"Bearer <token>"}}'
+claude mcp add-json php-mcp-tools '{"type":"http","url":"https://your-host/mcp-tools/mcp.php","headers":{"Authorization":"Bearer <token>"}}'
 ```
 
 ## CLI client
@@ -118,7 +123,7 @@ terminal — same JSON-RPC 2.0/HTTP wire protocol any MCP client uses, just conv
 testing and everyday use instead of hand-writing `curl`/JSON.
 
 ```bash
-export MCP_URL=http://127.0.0.1/mcp-tools/ MCP_TOKEN=<token>   # or use --url=/--token= flags
+export MCP_URL=http://127.0.0.1/mcp-tools/mcp.php MCP_TOKEN=<token>   # or use --url=/--token= flags
 
 php bin/mcp-cli.php list
 php bin/mcp-cli.php call web_fetch '{"url":"https://example.com"}'
@@ -128,6 +133,10 @@ php bin/mcp-cli.php health                  # unauthenticated ?health=1 check
 php bin/mcp-cli.php raw tools/list          # any JSON-RPC method, for debugging
 ```
 
+`MCP_URL` for the CLI (and for client configs like `mcp.json.example`) is the `mcp.php` endpoint
+itself — unlike `tests/live.php` below, which takes the *site root* since it needs to check both
+`index.php` and `mcp.php`.
+
 `call` exits non-zero and prints the error if the tool reports `isError: true`; `--help` prints
 full usage.
 
@@ -135,7 +144,9 @@ full usage.
 
 ```
 bin/mcp-cli.php         Standalone CLI client (talks the same JSON-RPC/HTTP protocol as any MCP client).
-public/index.php        Front controller: routing (GET guide/health vs POST JSON-RPC), auth check.
+public/
+  mcp.php                 The MCP endpoint: CORS, auth, JSON-RPC dispatch. All "real" traffic.
+  index.php               Plain-English help/info page only — no auth, no JSON-RPC, no CORS.
 src/
   autoload.php            spl_autoload_register mapping Mcp\Foo\Bar -> src/Foo/Bar.php.
   Config.php                Defaults merged with config.php / env; typed accessors.
@@ -143,7 +154,9 @@ src/
   JsonRpc.php                   Request parsing + success/error envelope builders.
   Server.php                     Dispatches initialize / tools/list / tools/call to a ToolRegistry.
   ToolRegistry.php                 Holds registered tools, builds the tools/list payload.
-  Guide.php                         Renders the HTML page for a plain browser GET /.
+  Bootstrap.php                     Builds the ToolRegistry — the one list of tools, shared by
+                                     mcp.php and index.php so they can't drift apart.
+  Guide.php                         Renders the HTML page served by index.php.
   Http/
     SafeFetcher.php                  Shared SSRF-guarded HTTP(S) fetch, used by every tool that
                                       fetches a user-supplied URL.
@@ -152,12 +165,14 @@ src/
     WebFetchTool.php, WebSearchTool.php, FeedDiscoverTool.php, FeedFetchTool.php
 ```
 
-Data flow for a `tools/call`: `public/index.php` parses the JSON-RPC envelope → `Server::handle()`
-looks up the tool by name in `ToolRegistry` → calls `Tool::call($arguments)` → the tool does its
-work (usually via `SafeFetcher`) and returns `{content: [...], isError?: bool}` → `Server` wraps
-that back into a JSON-RPC success envelope (tool errors are reported as `isError: true` inside a
-*successful* JSON-RPC response, not as a JSON-RPC-level error — that's reserved for
-protocol-level problems like an unknown method or a malformed request).
+Data flow for a `tools/call`: `public/mcp.php` parses the JSON-RPC envelope → `Server::handle()`
+looks up the tool by name in a `ToolRegistry` built by `Bootstrap::buildToolRegistry()` → calls
+`Tool::call($arguments)` → the tool does its work (usually via `SafeFetcher`) and returns
+`{content: [...], isError?: bool}` → `Server` wraps that back into a JSON-RPC success envelope
+(tool errors are reported as `isError: true` inside a *successful* JSON-RPC response, not as a
+JSON-RPC-level error — that's reserved for protocol-level problems like an unknown method or a
+malformed request). `public/index.php` calls the same `Bootstrap::buildToolRegistry()` purely to
+list tools on the help page — it never dispatches a `tools/call`.
 
 ## Adding a new tool
 
@@ -195,15 +210,16 @@ tool. Follow this checklist — it's the exact process `web_fetch`/`web_search`/
      `search_default_max_results`, `feed_default_max_items`, ...), and read them via
      `$this->config->get('your_setting', $fallback)`.
 
-2. **Register it** in `public/index.php` — two lines, alongside the existing tools:
+2. **Register it** in `src/Bootstrap.php` — two lines, alongside the existing tools:
    ```php
    use Mcp\Tools\YourTool;
    ...
    $tools->register(new YourTool($config));
    ```
-   Nothing else needs to change. `ToolRegistry`, `Server`, and `Guide` are all tool-agnostic and
-   pick up the new tool automatically (`tools/list`, `tools/call`, and the browser guide page all
-   read from the same registry).
+   That's the *only* place to register a tool — both `public/mcp.php` (dispatch) and
+   `public/index.php` (help page) call `Bootstrap::buildToolRegistry()`, so they can't disagree
+   about which tools exist. Nothing else needs to change; `ToolRegistry`, `Server`, and `Guide` are
+   all tool-agnostic.
 
 3. **Add unit tests** in `tests/YourToolTest.php`, and require it from `tests/run.php` (add
    `echo "YourTool\n"; require __DIR__ . '/YourToolTest.php';` next to the others). Pattern to
@@ -225,7 +241,7 @@ tool. Follow this checklist — it's the exact process `web_fetch`/`web_search`/
    php tests/run.php                                                    # offline unit tests
    php -S 127.0.0.1:8080 -t public &                                    # local dev server
    cp config.php.example config.php && $EDITOR config.php               # set a token
-   MCP_URL=http://127.0.0.1:8080/ MCP_TOKEN=<token> php tests/live.php  # end-to-end
+   MCP_URL=http://127.0.0.1:8080/ MCP_TOKEN=<token> php tests/live.php  # end-to-end (site root, not mcp.php)
    ```
 
 6. **Deploy and re-verify** if you have a live instance: `./deploy.sh`, then re-run
@@ -272,6 +288,8 @@ search, a real feed fetch against php.net, and real SSRF-guard rejections):
 MCP_URL=http://127.0.0.1/mcp-tools/ MCP_TOKEN=<token> php tests/live.php
 ```
 
-`MCP_URL` defaults to `http://127.0.0.1:8080/` (matching the `php -S` dev-server instructions
-above); `MCP_TOKEN` is required. Run it after every deploy to confirm the live instance is
-healthy.
+`MCP_URL` is the *site root* here (unlike the CLI/client-config `MCP_URL`, which is `mcp.php`
+itself) — the script appends `mcp.php` internally for JSON-RPC calls while also checking
+`index.php` at the root. Defaults to `http://127.0.0.1:8080/` (matching the `php -S` dev-server
+instructions above); `MCP_TOKEN` is required. Run it after every deploy to confirm the live
+instance is healthy.

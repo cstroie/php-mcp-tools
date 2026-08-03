@@ -3,85 +3,20 @@ declare(strict_types=1);
 
 require __DIR__ . '/../src/autoload.php';
 
-use Mcp\Auth;
+use Mcp\Bootstrap;
 use Mcp\Config;
 use Mcp\Guide;
-use Mcp\JsonRpc;
-use Mcp\Server;
-use Mcp\ToolRegistry;
-use Mcp\Tools\FeedDiscoverTool;
-use Mcp\Tools\FeedFetchTool;
-use Mcp\Tools\WebFetchTool;
-use Mcp\Tools\WebSearchTool;
+
+// Pure help/info page — no auth, no JSON-RPC, no CORS. The actual MCP endpoint
+// clients talk to is the sibling mcp.php.
 
 $config = Config::load();
+$tools = Bootstrap::buildToolRegistry($config);
 
-// CORS: MCP clients are commonly browser-based JS talking cross-origin. A custom
-// Authorization header always triggers a preflight OPTIONS request, so it must be
-// answered even though nothing else here needs auth-free access.
-header('Access-Control-Allow-Origin: ' . $config->get('cors_allow_origin', '*'));
-header('Vary: Origin');
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type, Authorization, Accept, mcp-protocol-version, x-mcp-session-id');
-    header('Access-Control-Max-Age: 86400');
-    http_response_code(204);
-    exit;
-}
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$dir = dirname($_SERVER['SCRIPT_NAME'] ?? '/');
+$dir = ($dir === '/' || $dir === '\\') ? '' : $dir;
+$endpointUrl = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $dir . '/mcp.php';
 
-$tools = new ToolRegistry();
-$tools->register(new WebFetchTool($config));
-$tools->register(new WebSearchTool($config));
-$tools->register(new FeedDiscoverTool($config));
-$tools->register(new FeedFetchTool($config));
-
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    // Unauthenticated, script-friendly health check.
-    if (isset($_GET['health'])) {
-        header('Content-Type: text/plain');
-        echo "ok\n";
-        exit;
-    }
-
-    // Plain browser visit — show a human-readable setup guide instead of an error.
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $endpointUrl = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . ($_SERVER['SCRIPT_NAME'] ?? '/');
-    header('Content-Type: text/html; charset=utf-8');
-    echo Guide::render($tools, $endpointUrl);
-    exit;
-}
-
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    header('Content-Type: application/json');
-    echo json_encode(JsonRpc::error(null, JsonRpc::INVALID_REQUEST, 'Method not allowed'));
-    exit;
-}
-
-if (!Auth::check($config)) {
-    http_response_code(401);
-    header('Content-Type: application/json');
-    echo json_encode(JsonRpc::error(null, JsonRpc::INVALID_REQUEST, 'Unauthorized'));
-    exit;
-}
-
-$body = file_get_contents('php://input') ?: '';
-$request = JsonRpc::parse($body);
-
-if ($request === null) {
-    http_response_code(400);
-    header('Content-Type: application/json');
-    echo json_encode(JsonRpc::error(null, JsonRpc::PARSE_ERROR, 'Invalid JSON-RPC request'));
-    exit;
-}
-
-$server = new Server($tools);
-$response = $server->handle($request);
-
-if ($response === null) {
-    http_response_code(204);
-    exit;
-}
-
-header('Content-Type: application/json');
-echo json_encode($response);
+header('Content-Type: text/html; charset=utf-8');
+echo Guide::render($tools, $endpointUrl);
