@@ -78,9 +78,30 @@ curl -X POST http://127.0.0.1:8080/ \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"web_fetch","arguments":{"url":"https://example.com"}}}'
 ```
 
+## CLI client
+
+`bin/mcp-cli.php` is a small standalone script for talking to a running instance from the
+terminal — same JSON-RPC 2.0/HTTP wire protocol any MCP client uses, just convenient for manual
+testing and everyday use instead of hand-writing `curl`/JSON.
+
+```bash
+export MCP_URL=http://127.0.0.1/mcp-tools/ MCP_TOKEN=<token>   # or use --url=/--token= flags
+
+php bin/mcp-cli.php list
+php bin/mcp-cli.php call web_fetch '{"url":"https://example.com"}'
+php bin/mcp-cli.php call feed_fetch '{"url":"https://www.php.net/feed.atom","max_items":3}'
+php bin/mcp-cli.php init                    # raw initialize response
+php bin/mcp-cli.php health                  # unauthenticated ?health=1 check
+php bin/mcp-cli.php raw tools/list          # any JSON-RPC method, for debugging
+```
+
+`call` exits non-zero and prints the error if the tool reports `isError: true`; `--help` prints
+full usage.
+
 ## Architecture
 
 ```
+bin/mcp-cli.php         Standalone CLI client (talks the same JSON-RPC/HTTP protocol as any MCP client).
 public/index.php        Front controller: routing (GET guide/health vs POST JSON-RPC), auth check.
 src/
   autoload.php            spl_autoload_register mapping Mcp\Foo\Bar -> src/Foo/Bar.php.
