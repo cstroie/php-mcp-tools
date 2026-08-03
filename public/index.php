@@ -5,6 +5,7 @@ require __DIR__ . '/../src/autoload.php';
 
 use Mcp\Auth;
 use Mcp\Config;
+use Mcp\Guide;
 use Mcp\JsonRpc;
 use Mcp\Server;
 use Mcp\ToolRegistry;
@@ -13,10 +14,23 @@ use Mcp\Tools\WebSearchTool;
 
 $config = Config::load();
 
-// Unauthenticated health check.
+$tools = new ToolRegistry();
+$tools->register(new WebFetchTool($config));
+$tools->register(new WebSearchTool($config));
+
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    header('Content-Type: text/plain');
-    echo "ok\n";
+    // Unauthenticated, script-friendly health check.
+    if (isset($_GET['health'])) {
+        header('Content-Type: text/plain');
+        echo "ok\n";
+        exit;
+    }
+
+    // Plain browser visit — show a human-readable setup guide instead of an error.
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $endpointUrl = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . ($_SERVER['SCRIPT_NAME'] ?? '/');
+    header('Content-Type: text/html; charset=utf-8');
+    echo Guide::render($tools, $endpointUrl);
     exit;
 }
 
@@ -43,10 +57,6 @@ if ($request === null) {
     echo json_encode(JsonRpc::error(null, JsonRpc::PARSE_ERROR, 'Invalid JSON-RPC request'));
     exit;
 }
-
-$tools = new ToolRegistry();
-$tools->register(new WebFetchTool($config));
-$tools->register(new WebSearchTool($config));
 
 $server = new Server($tools);
 $response = $server->handle($request);

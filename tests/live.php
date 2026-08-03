@@ -98,9 +98,16 @@ function rpc(string $baseUrl, string $token, string $method, ?array $params = nu
 echo "Target: {$baseUrl}\n\n";
 
 echo "Health check\n";
-$health = httpRequest($baseUrl, 'GET');
-check('GET / returns 200', $health['status'] === 200, "got {$health['status']}");
-check('GET / body is "ok"', trim($health['body']) === 'ok', "got '" . trim($health['body']) . "'");
+$health = httpRequest($baseUrl . '?health=1', 'GET');
+check('GET ?health=1 returns 200', $health['status'] === 200, "got {$health['status']}");
+check('GET ?health=1 body is "ok"', trim($health['body']) === 'ok', "got '" . trim($health['body']) . "'");
+
+echo "\nSetup guide\n";
+$guide = httpRequest($baseUrl, 'GET');
+check('GET / returns 200', $guide['status'] === 200, "got {$guide['status']}");
+check('GET / renders HTML guide', strpos($guide['body'], '<html') !== false, "got '" . substr($guide['body'], 0, 60) . "'");
+check('guide lists web_fetch', strpos($guide['body'], 'web_fetch') !== false);
+check('guide lists web_search', strpos($guide['body'], 'web_search') !== false);
 
 echo "\nAuth\n";
 $noAuth = httpRequest($baseUrl, 'POST', json_encode(['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list']));
