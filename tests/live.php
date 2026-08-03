@@ -148,6 +148,8 @@ $list = rpc($baseUrl, $token, 'tools/list');
 $toolNames = array_column($list['json']['result']['tools'] ?? [], 'name');
 check('lists web_fetch', in_array('web_fetch', $toolNames, true), implode(',', $toolNames));
 check('lists web_search', in_array('web_search', $toolNames, true), implode(',', $toolNames));
+check('lists feed_discover', in_array('feed_discover', $toolNames, true), implode(',', $toolNames));
+check('lists feed_fetch', in_array('feed_fetch', $toolNames, true), implode(',', $toolNames));
 
 echo "\ntools/call web_fetch\n";
 $fetch = rpc($baseUrl, $token, 'tools/call', [
@@ -178,6 +180,52 @@ $search = rpc($baseUrl, $token, 'tools/call', [
 $searchText = $search['json']['result']['content'][0]['text'] ?? '';
 check('search returns non-empty content', trim($searchText) !== '', 'empty response body');
 check('search is not flagged as error', empty($search['json']['result']['isError']), $searchText);
+
+echo "\ntools/call feed_discover\n";
+$discover = rpc($baseUrl, $token, 'tools/call', [
+    'name' => 'feed_discover',
+    'arguments' => ['url' => 'https://www.php.net/'],
+]);
+$discoverText = $discover['json']['result']['content'][0]['text'] ?? '';
+$discoverFeeds = json_decode($discoverText, true);
+check('feed_discover is not flagged as error', empty($discover['json']['result']['isError']), $discoverText);
+check('feed_discover finds at least one feed on php.net', is_array($discoverFeeds) && count($discoverFeeds) > 0, $discoverText);
+$discoveredUrls = is_array($discoverFeeds) ? array_column($discoverFeeds, 'url') : [];
+check(
+    'feed_discover finds the php.net atom feed',
+    in_array('https://www.php.net/feed.atom', $discoveredUrls, true),
+    implode(',', $discoveredUrls)
+);
+
+echo "\ntools/call feed_fetch\n";
+$feedFetch = rpc($baseUrl, $token, 'tools/call', [
+    'name' => 'feed_fetch',
+    'arguments' => ['url' => 'https://www.php.net/feed.atom', 'max_items' => 3],
+]);
+$feedFetchText = $feedFetch['json']['result']['content'][0]['text'] ?? '';
+$feedFetchJson = json_decode($feedFetchText, true);
+check('feed_fetch is not flagged as error', empty($feedFetch['json']['result']['isError']), $feedFetchText);
+check('feed_fetch returns items', is_array($feedFetchJson['items'] ?? null) && count($feedFetchJson['items']) > 0, $feedFetchText);
+check(
+    'feed_fetch respects max_items',
+    is_array($feedFetchJson['items'] ?? null) && count($feedFetchJson['items']) <= 3,
+    $feedFetchText
+);
+check(
+    'feed_fetch item has a title',
+    !empty($feedFetchJson['items'][0]['title'] ?? ''),
+    $feedFetchText
+);
+
+$feedFetchSsrf = rpc($baseUrl, $token, 'tools/call', [
+    'name' => 'feed_fetch',
+    'arguments' => ['url' => 'http://127.0.0.1/'],
+]);
+check(
+    'feed_fetch blocks loopback URL',
+    ($feedFetchSsrf['json']['result']['isError'] ?? false) === true,
+    json_encode($feedFetchSsrf['json'])
+);
 
 echo "\ntools/call errors\n";
 $unknownTool = rpc($baseUrl, $token, 'tools/call', ['name' => 'no_such_tool', 'arguments' => []]);

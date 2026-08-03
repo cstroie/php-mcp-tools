@@ -9,6 +9,8 @@ use Mcp\Guide;
 use Mcp\JsonRpc;
 use Mcp\Server;
 use Mcp\ToolRegistry;
+use Mcp\Tools\FeedDiscoverTool;
+use Mcp\Tools\FeedFetchTool;
 use Mcp\Tools\WebFetchTool;
 use Mcp\Tools\WebSearchTool;
 
@@ -17,6 +19,8 @@ $config = Config::load();
 $tools = new ToolRegistry();
 $tools->register(new WebFetchTool($config));
 $tools->register(new WebSearchTool($config));
+$tools->register(new FeedDiscoverTool($config));
+$tools->register(new FeedFetchTool($config));
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // Unauthenticated, script-friendly health check.
