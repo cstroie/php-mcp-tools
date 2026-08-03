@@ -1,0 +1,19 @@
+<?php
+declare(strict_types=1);
+
+// Copy this file to config.php (gitignored) and fill in real values,
+// or set the equivalent environment variables instead.
+
+return [
+    'token' => 'change-me-to-a-long-random-string',
+    // A browser-like UA avoids 403s from DuckDuckGo's HTML search endpoint.
+    // 'user_agent' => 'Mozilla/5.0 ...',
+
+    'fetch_timeout' => 10,
+    'fetch_max_bytes' => 2 * 1024 * 1024,
+    'fetch_max_redirects' => 3,
+    'fetch_default_max_length' => 8000,
+
+    'search_timeout' => 10,
+    'search_default_max_results' => 8,
+];
