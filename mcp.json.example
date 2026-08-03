@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "php-mcp-tools": {
+      "type": "http",
+      "url": "https://your-host/mcp-tools/",
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
+    }
+  }
+}

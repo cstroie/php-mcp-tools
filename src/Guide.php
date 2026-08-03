@@ -35,6 +35,22 @@ final class Guide
             ENT_QUOTES
         );
 
+        $clientConfig = htmlspecialchars(
+            json_encode(
+                [
+                    'mcpServers' => [
+                        'php-mcp-tools' => [
+                            'type' => 'http',
+                            'url' => $endpointUrl,
+                            'headers' => ['Authorization' => 'Bearer <token>'],
+                        ],
+                    ],
+                ],
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+            ),
+            ENT_QUOTES
+        );
+
         return <<<HTML
         <!DOCTYPE html>
         <html lang="en">
@@ -72,6 +88,11 @@ final class Guide
 
           <h2>Try it</h2>
           <pre>{$exampleCurl}</pre>
+
+          <h2>Client config (Claude Code, Claude Desktop, ...)</h2>
+          <p>Paste this into the client's <code>mcpServers</code> config (or
+          <code>claude mcp add-json</code>), replacing <code>&lt;token&gt;</code>:</p>
+          <pre>{$clientConfig}</pre>
 
           <h2>Available tools</h2>
           {$toolsHtml}

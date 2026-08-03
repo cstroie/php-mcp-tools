@@ -85,6 +85,32 @@ curl -X POST http://127.0.0.1:8080/ \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"web_fetch","arguments":{"url":"https://example.com"}}}'
 ```
 
+## Client configuration
+
+For MCP clients that read a JSON config (Claude Code, Claude Desktop, and others using the same
+`mcpServers` convention), copy `mcp.json.example` and fill in your URL/token:
+
+```json
+{
+  "mcpServers": {
+    "php-mcp-tools": {
+      "type": "http",
+      "url": "https://your-host/mcp-tools/",
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
+    }
+  }
+}
+```
+
+Merge that `mcpServers` entry into the client's own config file (e.g. `.mcp.json` in a project, or
+Claude Desktop's config). Claude Code can also add it directly from the CLI:
+
+```bash
+claude mcp add-json php-mcp-tools '{"type":"http","url":"https://your-host/mcp-tools/","headers":{"Authorization":"Bearer <token>"}}'
+```
+
 ## CLI client
 
 `bin/mcp-cli.php` is a small standalone script for talking to a running instance from the
