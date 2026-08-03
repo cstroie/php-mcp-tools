@@ -6,7 +6,7 @@ namespace Mcp;
 final class Server
 {
     private const PROTOCOL_VERSION = '2025-06-18';
-    private const SERVER_NAME = 'php-mcp-tools';
+    private const SERVER_NAME = 'tusk';
     private const SERVER_VERSION = '1.0.0';
 
     private ToolRegistry $tools;

@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "php-mcp-tools": {
+    "tusk": {
       "type": "http",
-      "url": "https://your-host/mcp-tools/mcp.php",
+      "url": "https://your-host/tusk/mcp.php",
       "headers": {
         "Authorization": "Bearer <token>"
       }

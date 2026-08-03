@@ -20,7 +20,7 @@ without asking first; "zero dependencies" is a deliberate project constraint, no
 php tests/run.php                                                     # offline unit tests (no network, no server)
 php -S 127.0.0.1:8080 -t public                                       # local dev server
 MCP_URL=http://127.0.0.1:8080/ MCP_TOKEN=<token> php tests/live.php   # end-to-end, against a running instance
-./deploy.sh                                                           # sync to DEPLOY_DIR (default /var/www/html/mcp-tools)
+./deploy.sh                                                           # sync to DEPLOY_DIR (default /var/www/html/tusk)
 ```
 
 Both test suites must pass before considering a change done — `tests/run.php` alone is not
@@ -74,7 +74,7 @@ built and tested. Short version:
   `mcp.php` is the only one with auth/CORS; `index.php` is unauthenticated on purpose (it's just
   static-ish info) — don't merge them back into one router, and don't add auth to `index.php` or
   drop auth from `mcp.php`.
-- **`MCP_URL` means different things in different scripts** — in `bin/mcp-cli.php` and
+- **`MCP_URL` means different things in different scripts** — in `bin/tusk.php` and
   `mcp.json.example` it's the `mcp.php` endpoint itself (what a real MCP client would use); in
   `tests/live.php` it's the *site root*, because that script needs to check `index.php` too and
   appends `/mcp.php` itself for the JSON-RPC calls. Keep this distinction when editing either.

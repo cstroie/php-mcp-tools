@@ -7,7 +7,7 @@ declare(strict_types=1);
  * SSRF-guard / auth / DuckDuckGo code paths.
  *
  * Usage:
- *   MCP_URL=http://127.0.0.1/mcp-tools/ MCP_TOKEN=... php tests/live.php
+ *   MCP_URL=http://127.0.0.1/tusk/ MCP_TOKEN=... php tests/live.php
  *
  * MCP_URL defaults to http://127.0.0.1:8080/ ; MCP_TOKEN is required.
  */
@@ -126,7 +126,7 @@ $init = rpc($rpcUrl, $token, 'initialize', []);
 check('initialize succeeds', isset($init['json']['result']));
 check(
     'initialize reports server name',
-    ($init['json']['result']['serverInfo']['name'] ?? null) === 'php-mcp-tools',
+    ($init['json']['result']['serverInfo']['name'] ?? null) === 'tusk',
     json_encode($init['json'])
 );
 

@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // point browsers at the help page instead of showing them nothing useful.
     $indexUrl = './index.php';
     header('Content-Type: text/plain');
-    echo "This is the php-mcp-tools MCP JSON-RPC endpoint — POST requests here.\n";
+    echo "This is the Tusk MCP JSON-RPC endpoint — POST requests here.\n";
     echo "See {$indexUrl} for setup help.\n";
     exit;
 }

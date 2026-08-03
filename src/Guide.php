@@ -39,7 +39,7 @@ final class Guide
             json_encode(
                 [
                     'mcpServers' => [
-                        'php-mcp-tools' => [
+                        'tusk' => [
                             'type' => 'http',
                             'url' => $endpointUrl,
                             'headers' => ['Authorization' => 'Bearer <token>'],
@@ -56,7 +56,7 @@ final class Guide
         <html lang="en">
         <head>
           <meta charset="utf-8">
-          <title>php-mcp-tools</title>
+          <title>Tusk</title>
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <style>
             body { font-family: system-ui, sans-serif; max-width: 46rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; color: #1a1a1a; }
@@ -71,7 +71,7 @@ final class Guide
           </style>
         </head>
         <body>
-          <h1>php-mcp-tools</h1>
+          <h1>Tusk</h1>
           <p class="muted">This is an MCP server (JSON-RPC 2.0 over HTTP). This page is only shown for
           plain browser <code>GET</code> requests &mdash; MCP clients should talk to this same URL
           with <code>POST</code>.</p>

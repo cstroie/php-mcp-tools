@@ -1,4 +1,4 @@
-# php-mcp-tools
+# Tusk
 
 A small, dependency-free [MCP](https://modelcontextprotocol.io) server in PHP 7.4, exposed over
 plain HTTP (streamable-HTTP / "WebMCP" transport, not stdio) so it can be added as a remote MCP
@@ -46,8 +46,8 @@ level — no separate `public/`), `deploy.sh` bridges the gap: it flattens `publ
 `public/mcp.php`, and `src/` into a target directory, leaving `config.php` there untouched.
 
 ```bash
-sudo mkdir -p /var/www/html/mcp-tools && sudo chown "$(id -un):$(id -gn)" /var/www/html/mcp-tools
-cp config.php.example /var/www/html/mcp-tools/config.php   # first time only; then edit the token
+sudo mkdir -p /var/www/html/tusk && sudo chown "$(id -un):$(id -gn)" /var/www/html/tusk
+cp config.php.example /var/www/html/tusk/config.php   # first time only; then edit the token
 ./deploy.sh                                                  # re-run after every change to src/ or public/*.php
 ```
 
@@ -98,9 +98,9 @@ For MCP clients that read a JSON config (Claude Code, Claude Desktop, and others
 ```json
 {
   "mcpServers": {
-    "php-mcp-tools": {
+    "tusk": {
       "type": "http",
-      "url": "https://your-host/mcp-tools/mcp.php",
+      "url": "https://your-host/tusk/mcp.php",
       "headers": {
         "Authorization": "Bearer <token>"
       }
@@ -113,24 +113,24 @@ Merge that `mcpServers` entry into the client's own config file (e.g. `.mcp.json
 Claude Desktop's config). Claude Code can also add it directly from the CLI:
 
 ```bash
-claude mcp add-json php-mcp-tools '{"type":"http","url":"https://your-host/mcp-tools/mcp.php","headers":{"Authorization":"Bearer <token>"}}'
+claude mcp add-json tusk '{"type":"http","url":"https://your-host/tusk/mcp.php","headers":{"Authorization":"Bearer <token>"}}'
 ```
 
 ## CLI client
 
-`bin/mcp-cli.php` is a small standalone script for talking to a running instance from the
+`bin/tusk.php` is a small standalone script for talking to a running instance from the
 terminal — same JSON-RPC 2.0/HTTP wire protocol any MCP client uses, just convenient for manual
 testing and everyday use instead of hand-writing `curl`/JSON.
 
 ```bash
-export MCP_URL=http://127.0.0.1/mcp-tools/mcp.php MCP_TOKEN=<token>   # or use --url=/--token= flags
+export MCP_URL=http://127.0.0.1/tusk/mcp.php MCP_TOKEN=<token>   # or use --url=/--token= flags
 
-php bin/mcp-cli.php list
-php bin/mcp-cli.php call web_fetch '{"url":"https://example.com"}'
-php bin/mcp-cli.php call feed_fetch '{"url":"https://www.php.net/feed.atom","max_items":3}'
-php bin/mcp-cli.php init                    # raw initialize response
-php bin/mcp-cli.php health                  # unauthenticated ?health=1 check
-php bin/mcp-cli.php raw tools/list          # any JSON-RPC method, for debugging
+php bin/tusk.php list
+php bin/tusk.php call web_fetch '{"url":"https://example.com"}'
+php bin/tusk.php call feed_fetch '{"url":"https://www.php.net/feed.atom","max_items":3}'
+php bin/tusk.php init                    # raw initialize response
+php bin/tusk.php health                  # unauthenticated ?health=1 check
+php bin/tusk.php raw tools/list          # any JSON-RPC method, for debugging
 ```
 
 `MCP_URL` for the CLI (and for client configs like `mcp.json.example`) is the `mcp.php` endpoint
@@ -143,7 +143,7 @@ full usage.
 ## Architecture
 
 ```
-bin/mcp-cli.php         Standalone CLI client (talks the same JSON-RPC/HTTP protocol as any MCP client).
+bin/tusk.php         Standalone CLI client (talks the same JSON-RPC/HTTP protocol as any MCP client).
 public/
   mcp.php                 The MCP endpoint: CORS, auth, JSON-RPC dispatch. All "real" traffic.
   index.php               Plain-English help/info page only — no auth, no JSON-RPC, no CORS.
@@ -285,7 +285,7 @@ JSON-RPC surface, the browser guide page, and the actual tools (including a real
 search, a real feed fetch against php.net, and real SSRF-guard rejections):
 
 ```bash
-MCP_URL=http://127.0.0.1/mcp-tools/ MCP_TOKEN=<token> php tests/live.php
+MCP_URL=http://127.0.0.1/tusk/ MCP_TOKEN=<token> php tests/live.php
 ```
 
 `MCP_URL` is the *site root* here (unlike the CLI/client-config `MCP_URL`, which is `mcp.php`

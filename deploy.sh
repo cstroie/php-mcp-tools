@@ -8,7 +8,7 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEPLOY_DIR="${DEPLOY_DIR:-/var/www/html/mcp-tools}"
+DEPLOY_DIR="${DEPLOY_DIR:-/var/www/html/tusk}"
 
 if [ ! -d "$DEPLOY_DIR" ]; then
     echo "error: $DEPLOY_DIR does not exist." >&2

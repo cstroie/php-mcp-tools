@@ -3,16 +3,16 @@
 declare(strict_types=1);
 
 /**
- * Minimal CLI client for a running php-mcp-tools instance — talks JSON-RPC 2.0
+ * Minimal CLI client for a running Tusk instance — talks JSON-RPC 2.0
  * over HTTP, same protocol any MCP client speaks. Handy for manual testing and
  * everyday use without hand-writing curl/JSON.
  *
  * Usage:
- *   mcp-cli.php list
- *   mcp-cli.php call <tool> ['{"arg":"value"}']
- *   mcp-cli.php init
- *   mcp-cli.php health
- *   mcp-cli.php raw <method> ['{"param":"value"}']
+ *   tusk.php list
+ *   tusk.php call <tool> ['{"arg":"value"}']
+ *   tusk.php init
+ *   tusk.php health
+ *   tusk.php raw <method> ['{"param":"value"}']
  *
  * Config: --url=<url> / --token=<token> flags, or MCP_URL / MCP_TOKEN env vars.
  * MCP_URL is the mcp.php endpoint (same URL you'd put in an MCP client config),
@@ -22,7 +22,7 @@ declare(strict_types=1);
 function usage(): void
 {
     fwrite(STDERR, <<<TXT
-    Usage: mcp-cli.php [--url=URL] [--token=TOKEN] <command> [args]
+    Usage: tusk.php [--url=URL] [--token=TOKEN] <command> [args]
 
     Commands:
       list                       List available tools
@@ -36,9 +36,9 @@ function usage(): void
       --token=TOKEN  Bearer token (env: MCP_TOKEN)
 
     Examples:
-      mcp-cli.php list
-      mcp-cli.php call web_fetch '{"url":"https://example.com"}'
-      mcp-cli.php call feed_fetch '{"url":"https://www.php.net/feed.atom","max_items":3}'
+      tusk.php list
+      tusk.php call web_fetch '{"url":"https://example.com"}'
+      tusk.php call feed_fetch '{"url":"https://www.php.net/feed.atom","max_items":3}'
 
     TXT);
 }
@@ -169,7 +169,7 @@ switch ($command) {
     case 'call':
         $toolName = array_shift($positional);
         if ($toolName === null) {
-            fwrite(STDERR, "Usage: mcp-cli.php call <tool> [json-args]\n");
+            fwrite(STDERR, "Usage: tusk.php call <tool> [json-args]\n");
             exit(1);
         }
         $argsJson = $positional[0] ?? '{}';
@@ -193,7 +193,7 @@ switch ($command) {
     case 'raw':
         $method = array_shift($positional);
         if ($method === null) {
-            fwrite(STDERR, "Usage: mcp-cli.php raw <method> [json-params]\n");
+            fwrite(STDERR, "Usage: tusk.php raw <method> [json-params]\n");
             exit(1);
         }
         $paramsJson = $positional[0] ?? null;
