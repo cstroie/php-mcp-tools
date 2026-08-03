@@ -89,4 +89,20 @@ No other files need to change — the registry and dispatcher are tool-agnostic.
 php tests/run.php
 ```
 
-Plain assertion-based tests, no PHPUnit — everything here is zero-dependency by design.
+Plain assertion-based unit tests, no PHPUnit — everything here is zero-dependency by design.
+These don't touch the network (SSRF-guard logic, HTML parsing, etc. are tested in isolation via
+reflection on private methods).
+
+### Live / end-to-end tests
+
+`tests/live.php` exercises a *running* instance over real HTTP — auth enforcement, the full
+JSON-RPC surface, and the actual `web_fetch`/`web_search` tools (including a real DuckDuckGo
+request and a real SSRF-guard rejection):
+
+```bash
+MCP_URL=http://127.0.0.1/mcp-tools/ MCP_TOKEN=<token> php tests/live.php
+```
+
+`MCP_URL` defaults to `http://127.0.0.1:8080/` (matching the `php -S` dev-server instructions
+above); `MCP_TOKEN` is required. Run it after every deploy to confirm the live instance is
+healthy.
