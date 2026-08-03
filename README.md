@@ -33,6 +33,21 @@ Production: point PHP-FPM/Apache/Nginx's document root at `public/`, with all re
 `public/index.php` (it's the only web-exposed file — everything else lives outside the web root
 or is otherwise not directly requestable).
 
+### deploy.sh
+
+If your server can't give this app its own document root (e.g. a single shared lighttpd/Apache
+docroot serving several apps as sibling directories, each with everything flattened at the top
+level — no separate `public/`), `deploy.sh` bridges the gap: it flattens `public/index.php` +
+`src/` into a target directory, leaving `config.php` there untouched.
+
+```bash
+sudo mkdir -p /var/www/html/mcp-tools && sudo chown "$(id -un):$(id -gn)" /var/www/html/mcp-tools
+cp config.php.example /var/www/html/mcp-tools/config.php   # first time only; then edit the token
+./deploy.sh                                                  # re-run after every change to src/ or public/index.php
+```
+
+Override the target with `DEPLOY_DIR=/some/other/path ./deploy.sh`.
+
 ## Protocol
 
 JSON-RPC 2.0 over `POST /`. A `GET /` returns a plain-text `ok` health check (no auth required).
