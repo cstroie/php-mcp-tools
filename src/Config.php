@@ -27,6 +27,8 @@ final class Config
             'search_default_max_results' => 8,
 
             'feed_default_max_items' => 20,
+
+            'cors_allow_origin' => '*',
         ];
 
         $file = __DIR__ . '/../config.php';

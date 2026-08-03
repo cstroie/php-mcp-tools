@@ -69,6 +69,13 @@ Every `POST` requires `Authorization: Bearer <token>`.
 
 Supported JSON-RPC methods: `initialize`, `notifications/initialized`, `tools/list`, `tools/call`.
 
+CORS is enabled by default (`Access-Control-Allow-Origin: *`, `OPTIONS` preflight handled) since
+browser-based MCP clients are common and a custom `Authorization` header always triggers a
+preflight request — without this, browser clients fail with "Failed to fetch" and no other error.
+Set `cors_allow_origin` in `config.php` to a specific origin instead of `*` if needed; the bearer
+token is still required either way, this only controls which pages' JS is allowed to *see* the
+response.
+
 Example:
 
 ```bash

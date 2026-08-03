@@ -16,6 +16,19 @@ use Mcp\Tools\WebSearchTool;
 
 $config = Config::load();
 
+// CORS: MCP clients are commonly browser-based JS talking cross-origin. A custom
+// Authorization header always triggers a preflight OPTIONS request, so it must be
+// answered even though nothing else here needs auth-free access.
+header('Access-Control-Allow-Origin: ' . $config->get('cors_allow_origin', '*'));
+header('Vary: Origin');
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, Accept, mcp-protocol-version, x-mcp-session-id');
+    header('Access-Control-Max-Age: 86400');
+    http_response_code(204);
+    exit;
+}
+
 $tools = new ToolRegistry();
 $tools->register(new WebFetchTool($config));
 $tools->register(new WebSearchTool($config));
