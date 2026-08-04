@@ -25,6 +25,9 @@ function invokePrivate(object $obj, string $method, array $args = [])
     return $ref->invokeArgs($obj, $args);
 }
 
+echo "Auth\n";
+require __DIR__ . '/AuthTest.php';
+
 echo "JsonRpc\n";
 require __DIR__ . '/JsonRpcTest.php';
 

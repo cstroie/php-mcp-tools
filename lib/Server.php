@@ -7,7 +7,13 @@ final class Server
 {
     private const PROTOCOL_VERSION = '2025-06-18';
     private const SERVER_NAME = 'tusk';
+    private const SERVER_TITLE = 'Tusk';
     private const SERVER_VERSION = '1.0.0';
+    private const SERVER_INSTRUCTIONS = 'Tusk: a minimal-dependency MCP server exposing web_fetch, '
+        . 'web_search, feed_discover, feed_fetch, and url_metadata tools. '
+        . 'Source and docs: https://github.com/cstroie/tusk. '
+        . 'License: MIT, Copyright (c) 2026 Costin Stroie. '
+        . 'Maintainer: Costin Stroie <costinstroie@eridu.eu.org>.';
 
     private ToolRegistry $tools;
 
@@ -32,8 +38,10 @@ final class Server
                     'capabilities' => ['tools' => new \stdClass()],
                     'serverInfo' => [
                         'name' => self::SERVER_NAME,
+                        'title' => self::SERVER_TITLE,
                         'version' => self::SERVER_VERSION,
                     ],
+                    'instructions' => self::SERVER_INSTRUCTIONS,
                 ]);
 
             case 'notifications/initialized':

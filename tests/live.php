@@ -118,6 +118,9 @@ check('missing bearer token -> 401', $noAuth['status'] === 401, "got {$noAuth['s
 $badAuth = httpRequest($rpcUrl, 'POST', json_encode(['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list']), 'wrong-token');
 check('wrong bearer token -> 401', $badAuth['status'] === 401, "got {$badAuth['status']}");
 
+$idAuth = httpRequest($rpcUrl, 'POST', json_encode(['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list']), "{$token}@test-client");
+check('token with @id suffix -> 200', $idAuth['status'] === 200, "got {$idAuth['status']}");
+
 echo "\nProtocol\n";
 $malformed = httpRequest($rpcUrl, 'POST', 'not json', $token);
 check('malformed JSON -> 400', $malformed['status'] === 400, "got {$malformed['status']}");

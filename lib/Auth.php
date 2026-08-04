@@ -18,7 +18,33 @@ final class Auth
             return false;
         }
 
-        return hash_equals($expected, $header);
+        return hash_equals($expected, self::tokenPart($header));
+    }
+
+    /**
+     * Returns the client id from a "token@id" bearer value, or null if the
+     * token carries no "@id" suffix. Purely informational (e.g. for logging);
+     * it plays no role in the auth check itself.
+     */
+    public static function clientId(): ?string
+    {
+        $header = self::bearerHeader();
+        if ($header === null) {
+            return null;
+        }
+
+        $at = strpos($header, '@');
+        if ($at === false) {
+            return null;
+        }
+
+        return substr($header, $at + 1);
+    }
+
+    private static function tokenPart(string $header): string
+    {
+        $at = strpos($header, '@');
+        return $at === false ? $header : substr($header, 0, $at);
     }
 
     private static function bearerHeader(): ?string

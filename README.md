@@ -44,7 +44,17 @@ Two web-exposed endpoints (both at the repo root):
   opening the site root in a browser (`index-file.names` picks it as the default document).
 
 Supported JSON-RPC methods on `mcp.php`: `initialize`, `notifications/initialized`, `tools/list`,
-`tools/call`.
+`tools/call`. `initialize`'s response includes `serverInfo` (`name`, `title`, `version`) and an
+`instructions` field with a short description, source/docs link, license, and maintainer contact —
+this is the MCP protocol's own place for that metadata (there's no separate "copyright" field);
+some clients (e.g. llama.cpp's MCP UI) surface `instructions` to the user. See
+`Server::SERVER_INSTRUCTIONS` in `lib/Server.php` to change it.
+
+The bearer token may optionally be suffixed with `@<client-id>`, e.g.
+`Authorization: Bearer <token>@my-client`. Only the part before `@` is checked against the
+configured token; the `@<client-id>` suffix is not validated and exists purely so different
+clients/deployments can share one token while remaining distinguishable (`Mcp\Auth::clientId()`
+returns it, currently unused beyond that). Omitting it works exactly as before.
 
 CORS is enabled by default on `mcp.php` (`Access-Control-Allow-Origin: *`, `OPTIONS` preflight
 handled) since browser-based MCP clients are common and a custom `Authorization` header always
