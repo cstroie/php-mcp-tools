@@ -94,3 +94,9 @@ built and tested. Short version:
   empty/broken HTML (no `<body>` content at all) — see `WebFetchTool::extractArticle()`. Don't
   assume a null/exception path will catch "this isn't really an article page"; it won't, in
   practice the fallback to whole-page text is rarely hit.
+- **`Mcp\Text\MarkdownConverter` is intentionally narrow, not a general HTML→Markdown library.**
+  It only handles the tag set Readability's cleanup emits (headings, `p`, lists, links, images,
+  `strong`/`em`, `code`/`pre`, `blockquote`, `table`, `hr`, `br`) — anything else falls through to
+  its `default` case, which just recurses into children and drops the wrapping tag. If you feed it
+  arbitrary uncleaned page HTML instead of Readability's output, expect worse results; it's not
+  meant to replace `htmlToPlainText()` for that path.

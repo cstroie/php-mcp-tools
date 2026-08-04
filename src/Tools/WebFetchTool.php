@@ -8,6 +8,7 @@ use andreskrey\Readability\ParseException;
 use andreskrey\Readability\Readability;
 use Mcp\Config;
 use Mcp\Http\SafeFetcher;
+use Mcp\Text\MarkdownConverter;
 
 final class WebFetchTool implements ToolInterface
 {
@@ -27,10 +28,11 @@ final class WebFetchTool implements ToolInterface
 
     public function description(): string
     {
-        return 'Fetch a web page over HTTP(S) and return its text content. For HTML pages, '
-            . 'extracts the main article/content (via Readability) instead of the full page '
-            . 'including navigation, ads, and boilerplate, falling back to the raw page text if '
-            . 'no clear article content is found.';
+        return 'Fetch a web page over HTTP(S) and return its content. For HTML pages, extracts '
+            . 'the main article/content (via Readability) instead of the full page including '
+            . 'navigation, ads, and boilerplate, and returns it as Markdown (headings, lists, '
+            . 'links, code blocks preserved) — falling back to plain text of the raw page if no '
+            . 'clear article content is found.';
     }
 
     public function inputSchema(): array
@@ -121,14 +123,14 @@ final class WebFetchTool implements ToolInterface
             return null;
         }
 
-        $text = $this->htmlToPlainText($content);
-        if ($text === '') {
+        $markdown = MarkdownConverter::convert($content);
+        if ($markdown === '') {
             return null;
         }
 
         $title = trim((string) $readability->getTitle());
 
-        return $title !== '' ? "{$title}\n\n{$text}" : $text;
+        return $title !== '' ? "# {$title}\n\n{$markdown}" : $markdown;
     }
 
     private function htmlToPlainText(string $html): string

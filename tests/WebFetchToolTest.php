@@ -33,7 +33,7 @@ HTML;
 
 $article = invokePrivate($tool, 'extractArticle', [$articleHtml, 'https://example.com/article']);
 check('extractArticle finds article content', $article !== null);
-check('extractArticle includes the document title', strpos($article, 'The Real Article Title') !== false);
+check('extractArticle renders the title as a markdown H1', strpos($article, '# The Real Article Title') === 0);
 check('extractArticle includes the body text', strpos($article, 'real article body text') !== false);
 check('extractArticle drops the nav boilerplate', strpos($article, 'About') === false);
 check('extractArticle drops the footer boilerplate', strpos($article, 'Copyright 2026') === false);

@@ -37,6 +37,9 @@ require __DIR__ . '/SafeFetcherTest.php';
 echo "UrlResolver\n";
 require __DIR__ . '/UrlResolverTest.php';
 
+echo "MarkdownConverter\n";
+require __DIR__ . '/MarkdownConverterTest.php';
+
 echo "WebFetchTool\n";
 require __DIR__ . '/WebFetchToolTest.php';
 

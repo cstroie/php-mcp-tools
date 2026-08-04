@@ -4,8 +4,9 @@ A small, minimal-dependency [MCP](https://modelcontextprotocol.io) server in PHP
 plain HTTP (streamable-HTTP / "WebMCP" transport, not stdio) so it can be added as a remote MCP
 connector. Ships with five tools:
 
-- **web_fetch** — fetch a URL over HTTP(S) and return its text content, extracting the main
-  article content (via Readability) for HTML pages when possible.
+- **web_fetch** — fetch a URL over HTTP(S) and return its content. For HTML pages, extracts the
+  main article content (via Readability) as Markdown, falling back to plain text of the whole page
+  when no clear article is found.
 - **web_search** — search the web via DuckDuckGo's HTML endpoint and return results.
 - **feed_discover** — fetch a web page and return the RSS/Atom feed URLs it advertises.
 - **feed_fetch** — fetch an RSS/Atom feed URL and return its items as JSON.
@@ -174,6 +175,9 @@ src/
                                       fetches a user-supplied URL.
     UrlResolver.php                  Shared "resolve this href against that page URL" logic,
                                       used by any tool that scrapes links out of HTML.
+  Text/
+    MarkdownConverter.php            HTML -> Markdown, scoped to the tag set Readability emits
+                                      (not a general-purpose converter). Used by WebFetchTool.
   Tools/
     ToolInterface.php                Contract every tool implements.
     WebFetchTool.php, WebSearchTool.php, FeedDiscoverTool.php, FeedFetchTool.php, UrlMetadataTool.php
@@ -270,12 +274,16 @@ tool. Follow this checklist — it's the exact process `web_fetch`/`web_search`/
   safety check and the actual connection, and caps response size and redirect count. This logic
   lives in `Mcp\Http\SafeFetcher` and is shared by every URL-fetching tool. For HTML pages, it
   first tries Readability article extraction (see [Credits](#credits)) to strip navigation/ads/
-  boilerplate; Readability does best-effort extraction on almost any page with *some* body content
-  (it only gives up on truly empty/broken HTML), so the plain full-page-text fallback is rarely
-  hit in practice — and on heavily templated non-article pages (large SPA-style sites, some
-  Wikipedia pages) the "best effort" can occasionally pull in unrelated embedded data instead of
-  the intended content. This is an inherent limitation of the algorithm, not a bug in the
-  integration.
+  boilerplate, then converts the extracted content to Markdown via `Mcp\Text\MarkdownConverter`
+  (headings, lists, links, emphasis, code blocks, tables preserved — the title becomes an `# H1`).
+  Readability does best-effort extraction on almost any page with *some* body content (it only
+  gives up on truly empty/broken HTML), so the plain full-page-text fallback (no Markdown
+  conversion applied there — it's the raw page, not isolated article content) is rarely hit in
+  practice — and on heavily templated non-article pages (large SPA-style sites, some Wikipedia
+  pages) the "best effort" can occasionally pull in unrelated embedded data instead of the
+  intended content. This is an inherent limitation of the algorithm, not a bug in the integration.
+  `MarkdownConverter` itself is scoped to the tag set Readability's cleanup actually emits, not a
+  general-purpose HTML→Markdown converter — see its class docblock.
 - **web_search** scrapes DuckDuckGo's no-JS HTML endpoint (`html.duckduckgo.com/html/`), which
   requires a browser-like `User-Agent` or DuckDuckGo returns `403`. This is best-effort scraping,
   not an official API — it can break if DuckDuckGo changes their markup. `ToolInterface` is
