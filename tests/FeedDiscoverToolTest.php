@@ -26,9 +26,3 @@ check('captures the feed type', $feeds[0]['type'] === 'application/rss+xml');
 
 $noFeeds = invokePrivate($tool, 'extractFeedLinks', ['<html><head></head><body></body></html>', 'https://example.com/']);
 check('returns empty array when no feeds present', $noFeeds === []);
-
-check(
-    'resolveUrl handles protocol-relative hrefs',
-    invokePrivate($tool, 'resolveUrl', ['https://example.com/a/', '//cdn.example/feed.xml'])
-        === 'https://cdn.example/feed.xml'
-);

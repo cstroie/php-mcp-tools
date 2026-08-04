@@ -152,6 +152,7 @@ check('lists web_fetch', in_array('web_fetch', $toolNames, true), implode(',', $
 check('lists web_search', in_array('web_search', $toolNames, true), implode(',', $toolNames));
 check('lists feed_discover', in_array('feed_discover', $toolNames, true), implode(',', $toolNames));
 check('lists feed_fetch', in_array('feed_fetch', $toolNames, true), implode(',', $toolNames));
+check('lists url_metadata', in_array('url_metadata', $toolNames, true), implode(',', $toolNames));
 
 echo "\ntools/call web_fetch\n";
 $fetch = rpc($rpcUrl, $token, 'tools/call', [
@@ -227,6 +228,32 @@ check(
     'feed_fetch blocks loopback URL',
     ($feedFetchSsrf['json']['result']['isError'] ?? false) === true,
     json_encode($feedFetchSsrf['json'])
+);
+
+echo "\ntools/call url_metadata\n";
+$metadata = rpc($rpcUrl, $token, 'tools/call', [
+    'name' => 'url_metadata',
+    'arguments' => ['url' => 'https://www.php.net/'],
+]);
+$metadataText = $metadata['json']['result']['content'][0]['text'] ?? '';
+$metadataJson = json_decode($metadataText, true);
+check('url_metadata is not flagged as error', empty($metadata['json']['result']['isError']), $metadataText);
+check('url_metadata captures a title', !empty($metadataJson['title'] ?? ''), $metadataText);
+check('url_metadata captures og:description', !empty($metadataJson['description'] ?? ''), $metadataText);
+check(
+    'url_metadata resolves og:image to an absolute URL',
+    ($metadataJson['image'] ?? '') === 'https://www.php.net/images/meta-image.png',
+    $metadataText
+);
+
+$metadataSsrf = rpc($rpcUrl, $token, 'tools/call', [
+    'name' => 'url_metadata',
+    'arguments' => ['url' => 'http://127.0.0.1/'],
+]);
+check(
+    'url_metadata blocks loopback URL',
+    ($metadataSsrf['json']['result']['isError'] ?? false) === true,
+    json_encode($metadataSsrf['json'])
 );
 
 echo "\ntools/call errors\n";

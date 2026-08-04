@@ -5,6 +5,7 @@ namespace Mcp\Tools;
 
 use Mcp\Config;
 use Mcp\Http\SafeFetcher;
+use Mcp\Http\UrlResolver;
 
 final class FeedDiscoverTool implements ToolInterface
 {
@@ -101,7 +102,7 @@ final class FeedDiscoverTool implements ToolInterface
                 continue;
             }
 
-            $feedUrl = $this->resolveUrl($pageUrl, $href);
+            $feedUrl = UrlResolver::resolve($pageUrl, $href);
             if (isset($seen[$feedUrl])) {
                 continue;
             }
@@ -115,29 +116,5 @@ final class FeedDiscoverTool implements ToolInterface
         }
 
         return $feeds;
-    }
-
-    private function resolveUrl(string $base, string $href): string
-    {
-        if (preg_match('#^https?://#i', $href)) {
-            return $href;
-        }
-        if (strpos($href, '//') === 0) {
-            $scheme = parse_url($base, PHP_URL_SCHEME) ?: 'https';
-            return "{$scheme}:{$href}";
-        }
-
-        $parts = parse_url($base);
-        $scheme = $parts['scheme'] ?? 'https';
-        $host = $parts['host'] ?? '';
-        $port = isset($parts['port']) ? ':' . $parts['port'] : '';
-
-        if (strpos($href, '/') === 0) {
-            return "{$scheme}://{$host}{$port}{$href}";
-        }
-
-        $path = $parts['path'] ?? '/';
-        $dir = substr($path, 0, strrpos($path, '/') + 1);
-        return "{$scheme}://{$host}{$port}{$dir}{$href}";
     }
 }

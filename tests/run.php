@@ -34,6 +34,9 @@ require __DIR__ . '/ToolRegistryTest.php';
 echo "SafeFetcher\n";
 require __DIR__ . '/SafeFetcherTest.php';
 
+echo "UrlResolver\n";
+require __DIR__ . '/UrlResolverTest.php';
+
 echo "WebFetchTool\n";
 require __DIR__ . '/WebFetchToolTest.php';
 
@@ -45,6 +48,9 @@ require __DIR__ . '/FeedDiscoverToolTest.php';
 
 echo "FeedFetchTool\n";
 require __DIR__ . '/FeedFetchToolTest.php';
+
+echo "UrlMetadataTool\n";
+require __DIR__ . '/UrlMetadataToolTest.php';
 
 echo "\n{$passed} passed, {$failures} failed\n";
 exit($failures > 0 ? 1 : 0);
