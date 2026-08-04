@@ -172,6 +172,16 @@ $ssrf = rpc($rpcUrl, $token, 'tools/call', [
 ]);
 check('blocks loopback URL', ($ssrf['json']['result']['isError'] ?? false) === true, json_encode($ssrf['json']));
 
+$ssrfMapped = rpc($rpcUrl, $token, 'tools/call', [
+    'name' => 'web_fetch',
+    'arguments' => ['url' => 'http://[::ffff:127.0.0.1]/'],
+]);
+check(
+    'blocks IPv4-mapped IPv6 loopback URL',
+    ($ssrfMapped['json']['result']['isError'] ?? false) === true,
+    json_encode($ssrfMapped['json'])
+);
+
 $badScheme = rpc($rpcUrl, $token, 'tools/call', [
     'name' => 'web_fetch',
     'arguments' => ['url' => 'file:///etc/passwd'],

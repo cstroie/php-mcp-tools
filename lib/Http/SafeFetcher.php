@@ -89,7 +89,10 @@ final class SafeFetcher
         }
 
         $host = $parts['host'];
-        $ip = filter_var($host, FILTER_VALIDATE_IP) ? $host : null;
+        // parse_url() leaves the brackets on a literal IPv6 host (e.g. "[::1]"),
+        // which filter_var()/inet_pton() don't accept — strip them before checking.
+        $hostForIp = trim($host, '[]');
+        $ip = filter_var($hostForIp, FILTER_VALIDATE_IP) ? $hostForIp : null;
         if ($ip === null) {
             $ips = gethostbynamel($host);
             if ($ips === false || count($ips) === 0) {
@@ -107,11 +110,44 @@ final class SafeFetcher
 
     private function isPublicIp(string $ip): bool
     {
+        if (!$this->isPublicRange($ip)) {
+            return false;
+        }
+
+        // PHP's filter_var doesn't flag IPv4-mapped/-compatible IPv6 addresses
+        // (e.g. ::ffff:127.0.0.1, ::ffff:169.254.169.254) as private/reserved,
+        // even though they route to the embedded IPv4 address — check that too.
+        $embedded = $this->embeddedIpv4($ip);
+        if ($embedded !== null && !$this->isPublicRange($embedded)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function isPublicRange(string $ip): bool
+    {
         return filter_var(
             $ip,
             FILTER_VALIDATE_IP,
             FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
         ) !== false;
+    }
+
+    private function embeddedIpv4(string $ip): ?string
+    {
+        $packed = @inet_pton($ip);
+        if ($packed === false || strlen($packed) !== 16) {
+            return null;
+        }
+
+        // ::ffff:0:0/96 (IPv4-mapped) or ::0:0/96 (IPv4-compatible, deprecated).
+        $prefix = substr($packed, 0, 12);
+        if ($prefix !== str_repeat("\0", 10) . "\xff\xff" && $prefix !== str_repeat("\0", 12)) {
+            return null;
+        }
+
+        return inet_ntop(substr($packed, 12));
     }
 
     /**
@@ -124,8 +160,7 @@ final class SafeFetcher
         $scheme = strtolower($parts['scheme']);
         $port = $parts['port'] ?? ($scheme === 'https' ? 443 : 80);
 
-        $ch = curl_init();
-        curl_setopt_array($ch, [
+        $options = [
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HEADER => true,
@@ -135,9 +170,22 @@ final class SafeFetcher
             CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
             CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
             CURLOPT_USERAGENT => $this->config->userAgent(),
-            CURLOPT_RESOLVE => ["{$host}:{$port}:{$resolvedIp}"],
             CURLOPT_RANGE => '0-' . ($maxBytes - 1),
-        ]);
+        ];
+
+        // CURLOPT_RESOLVE pins a *hostname* lookup to the IP we already validated,
+        // closing the DNS-rebinding window between that check and the connection.
+        // When the URL's host is already a literal IP (bracketed IPv6 or plain
+        // IPv4), curl never performs a DNS lookup for it in the first place — there
+        // is no resolution step to pin, and CURLOPT_RESOLVE doesn't accept a
+        // colon-bearing host token anyway (it would be ambiguous with the
+        // HOST:PORT:ADDRESS delimiters), so it must be omitted in that case.
+        if (filter_var(trim($host, '[]'), FILTER_VALIDATE_IP) === false) {
+            $options[CURLOPT_RESOLVE] = ["{$host}:{$port}:{$resolvedIp}"];
+        }
+
+        $ch = curl_init();
+        curl_setopt_array($ch, $options);
 
         $raw = curl_exec($ch);
         if ($raw === false) {
