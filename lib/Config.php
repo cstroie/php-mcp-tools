@@ -25,6 +25,8 @@ final class Config
             'fetch_default_max_length' => 8000,
             'search_timeout' => 10,
             'search_default_max_results' => 8,
+            'search_provider' => getenv('SEARCH_PROVIDER') ?: 'ddg',
+            'search_brave_api_key' => getenv('BRAVE_API_KEY') ?: '',
 
             'feed_default_max_items' => 20,
 

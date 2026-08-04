@@ -25,3 +25,44 @@ check('parseResults handles empty html', $empty === []);
 
 $capped = invokePrivate($tool, 'parseResults', [str_repeat($sampleHtml, 3), 2]);
 check('parseResults respects max_results', count($capped) === 2);
+
+$braveTool = new WebSearchTool(new Config([
+    'user_agent' => 'test-agent',
+    'search_default_max_results' => 8,
+    'search_provider' => 'brave',
+]));
+
+$braveJson = json_encode([
+    'web' => [
+        'results' => [
+            ['title' => 'Brave Title', 'url' => 'https://example.com/brave', 'description' => 'A <strong>snippet</strong>.'],
+            ['title' => 'Second', 'url' => 'https://example.com/second', 'description' => 'Second snippet.'],
+        ],
+    ],
+]);
+
+$braveResults = invokePrivate($braveTool, 'parseBraveResults', [$braveJson, 5]);
+check('parseBraveResults extracts both results', count($braveResults) === 2);
+check('parseBraveResults extracts title', $braveResults[0]['title'] === 'Brave Title');
+check('parseBraveResults extracts url', $braveResults[0]['url'] === 'https://example.com/brave');
+check('parseBraveResults strips HTML from snippet', $braveResults[0]['snippet'] === 'A snippet.');
+
+$braveCapped = invokePrivate($braveTool, 'parseBraveResults', [$braveJson, 1]);
+check('parseBraveResults respects max_results', count($braveCapped) === 1);
+
+$braveEmpty = invokePrivate($braveTool, 'parseBraveResults', ['{"web":{}}', 5]);
+check('parseBraveResults handles missing results', $braveEmpty === []);
+
+$searchWithoutKey = new WebSearchTool(new Config([
+    'user_agent' => 'test-agent',
+    'search_default_max_results' => 8,
+    'search_provider' => 'brave',
+    'search_brave_api_key' => '',
+]));
+$missingKeyThrew = false;
+try {
+    $searchWithoutKey->call(['query' => 'test']);
+} catch (\RuntimeException $e) {
+    $missingKeyThrew = strpos($e->getMessage(), 'search_brave_api_key') !== false;
+}
+check('call() throws when brave provider has no api key configured', $missingKeyThrew);

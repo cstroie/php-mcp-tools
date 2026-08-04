@@ -21,7 +21,8 @@ final class WebSearchTool implements ToolInterface
 
     public function description(): string
     {
-        return 'Search the web via DuckDuckGo and return a list of results (title, url, snippet).';
+        return 'Search the web (via Brave Search API or DuckDuckGo, depending on server config) '
+            . 'and return a list of results (title, url, snippet).';
     }
 
     public function inputSchema(): array
@@ -52,8 +53,13 @@ final class WebSearchTool implements ToolInterface
 
         $maxResults = (int) ($arguments['max_results'] ?? $this->config->get('search_default_max_results'));
 
-        $html = $this->fetchResultsPage($query);
-        $results = $this->parseResults($html, $maxResults);
+        $provider = strtolower((string) $this->config->get('search_provider', 'ddg'));
+        if ($provider === 'brave') {
+            $results = $this->searchBrave($query, $maxResults);
+        } else {
+            $html = $this->fetchResultsPage($query);
+            $results = $this->parseResults($html, $maxResults);
+        }
 
         if (empty($results)) {
             return [
@@ -74,6 +80,87 @@ final class WebSearchTool implements ToolInterface
                 ['type' => 'text', 'text' => implode("\n\n", $lines)],
             ],
         ];
+    }
+
+    /**
+     * @return array<int, array{title: string, url: string, snippet: string}>
+     */
+    private function searchBrave(string $query, int $maxResults): array
+    {
+        $apiKey = (string) $this->config->get('search_brave_api_key', '');
+        if ($apiKey === '') {
+            throw new \RuntimeException(
+                'search_provider is set to "brave" but no search_brave_api_key is configured'
+            );
+        }
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => 'https://api.search.brave.com/res/v1/web/search?q=' . rawurlencode($query)
+                . '&count=' . max(1, min($maxResults, 20)),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => (int) $this->config->get('search_timeout', 10),
+            CURLOPT_CONNECTTIMEOUT => (int) $this->config->get('search_timeout', 10),
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
+            CURLOPT_HTTPHEADER => [
+                'Accept: application/json',
+                'Accept-Encoding: gzip',
+                'X-Subscription-Token: ' . $apiKey,
+            ],
+        ]);
+
+        $body = curl_exec($ch);
+        if ($body === false) {
+            $error = curl_error($ch);
+            curl_close($ch);
+            throw new \RuntimeException("Brave search request failed: {$error}");
+        }
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($status !== 200) {
+            throw new \RuntimeException("Brave search request failed with HTTP {$status}");
+        }
+
+        return $this->parseBraveResults($body, $maxResults);
+    }
+
+    /**
+     * @return array<int, array{title: string, url: string, snippet: string}>
+     */
+    private function parseBraveResults(string $json, int $maxResults): array
+    {
+        $data = json_decode($json, true);
+        if (!is_array($data)) {
+            throw new \RuntimeException('Brave search returned an unparseable response');
+        }
+
+        $entries = $data['web']['results'] ?? [];
+        if (!is_array($entries)) {
+            return [];
+        }
+
+        $results = [];
+        foreach ($entries as $entry) {
+            if (count($results) >= $maxResults) {
+                break;
+            }
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $title = trim((string) ($entry['title'] ?? ''));
+            $url = trim((string) ($entry['url'] ?? ''));
+            $snippet = trim((string) ($entry['description'] ?? ''));
+
+            if ($title === '' || $url === '') {
+                continue;
+            }
+
+            $results[] = ['title' => $title, 'url' => $url, 'snippet' => strip_tags($snippet)];
+        }
+
+        return $results;
     }
 
     private function fetchResultsPage(string $query): string

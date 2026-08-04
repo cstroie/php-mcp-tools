@@ -7,7 +7,8 @@ connector. Ships with five tools:
 - **web_fetch** — fetch a URL over HTTP(S) and return its content. For HTML pages, extracts the
   main article content (via Readability) as Markdown, falling back to plain text of the whole page
   when no clear article is found.
-- **web_search** — search the web via DuckDuckGo's HTML endpoint and return results.
+- **web_search** — search the web and return results (title, url, snippet). Uses DuckDuckGo's
+  HTML endpoint by default, or the Brave Search API if configured (see `search_provider` below).
 - **feed_discover** — fetch a web page and return the RSS/Atom feed URLs it advertises.
 - **feed_fetch** — fetch an RSS/Atom feed URL and return its items as JSON.
 - **url_metadata** — fetch a page's title, description, Open Graph/Twitter Card tags, favicon,
@@ -239,11 +240,14 @@ tool. Follow this checklist — it's the exact process `web_fetch`/`web_search`/
   intended content. This is an inherent limitation of the algorithm, not a bug in the integration.
   `MarkdownConverter` itself is scoped to the tag set Readability's cleanup actually emits, not a
   general-purpose HTML→Markdown converter — see its class docblock.
-- **web_search** scrapes DuckDuckGo's no-JS HTML endpoint (`html.duckduckgo.com/html/`), which
-  requires a browser-like `User-Agent` or DuckDuckGo returns `403`. This is best-effort scraping,
-  not an official API — it can break if DuckDuckGo changes their markup. `ToolInterface` is
-  designed so a real search API (SerpAPI, Brave Search, etc.) can be dropped in later without
-  touching the dispatcher.
+- **web_search** picks its backend from `search_provider` in `config.php` (or the `SEARCH_PROVIDER`
+  env var): `'ddg'` (default) scrapes DuckDuckGo's no-JS HTML endpoint
+  (`html.duckduckgo.com/html/`), which requires a browser-like `User-Agent` or DuckDuckGo returns
+  `403` — this is best-effort scraping, not an official API, and can break if DuckDuckGo changes
+  their markup. `'brave'` calls the real [Brave Search API](https://brave.com/search/api/)
+  instead, and requires a `search_brave_api_key` (or `BRAVE_API_KEY` env var) — `web_search`
+  throws if `search_provider` is `'brave'` and no key is configured. `ToolInterface` doesn't care
+  which backend is active; adding another provider is a change local to `WebSearchTool`.
 - **feed_discover** only looks at `<link rel="alternate" type="application/(rss|atom)+xml" ...>`
   tags in the fetched HTML — it does not guess common feed paths (`/feed`, `/rss.xml`, ...) if a
   page doesn't advertise one explicitly.
