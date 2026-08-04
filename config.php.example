@@ -7,16 +7,25 @@ declare(strict_types=1);
 return [
     'token' => 'change-me-to-a-long-random-string',
     // A browser-like UA avoids 403s from DuckDuckGo's HTML search endpoint.
-    // 'user_agent' => 'Mozilla/5.0 ...',
+    // 'user_agent' => 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
 
-    'fetch_timeout' => 10,
-    'fetch_max_bytes' => 2 * 1024 * 1024,
-    'fetch_max_redirects' => 3,
-    'fetch_default_max_length' => 8000,
+    // web_fetch settings.
+    // 'fetch_timeout' => 10,
+    // 'fetch_max_bytes' => 2 * 1024 * 1024,
+    // 'fetch_max_redirects' => 3,
+    // 'fetch_default_max_length' => 8000,
 
-    'search_timeout' => 10,
-    'search_default_max_results' => 8,
+    // web_search settings.
+    // 'search_timeout' => 10,
+    // 'search_default_max_results' => 8,
     // 'ddg' (default, no key needed) or 'brave' (requires search_brave_api_key below).
     // 'search_provider' => 'ddg',
-    // 'search_brave_api_key' => 'your-brave-search-api-key',
+    'search_brave_api_key' => 'change-me-to-a-brave-search-api-key',
+
+    // feed_fetch settings.
+    // 'feed_default_max_items' => 20,
+
+    // Set to a specific origin instead of '*' to restrict which pages' JS may read
+    // mcp.php's responses cross-origin (the bearer token is still required either way).
+    // 'cors_allow_origin' => '*',
 ];
