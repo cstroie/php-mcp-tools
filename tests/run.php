@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require __DIR__ . '/../src/autoload.php';
+require __DIR__ . '/../lib/autoload.php';
 
 $failures = 0;
 $passed = 0;

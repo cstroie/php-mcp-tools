@@ -32,7 +32,7 @@ cp config.php.example config.php
 
 Edit `config.php` and set a `token` — this is the bearer token clients must send. Alternatively
 set the `MCP_TOKEN` environment variable instead of putting it in `config.php`. The server refuses
-to authenticate any request if no token is configured (see `src/Auth.php`) — it will not silently
+to authenticate any request if no token is configured (see `lib/Auth.php`) — it will not silently
 run open.
 
 ## Running
@@ -40,37 +40,23 @@ run open.
 Local dev:
 
 ```bash
-php -S 127.0.0.1:8080 -t public
+php -S 127.0.0.1:8080
 ```
 
-Production: point PHP-FPM/Apache/Nginx's document root at `public/`. Two files there are
-web-exposed: `public/mcp.php` (the actual MCP endpoint — auth, CORS, JSON-RPC) and
-`public/index.php` (a plain-English help/info page, no auth). Everything else lives outside the
-web root or is otherwise not directly requestable.
+Production: point PHP-FPM/Apache/Nginx's document root at the repo root. Two files there are
+web-exposed: `mcp.php` (the actual MCP endpoint — auth, CORS, JSON-RPC) and `index.php` (a
+plain-English help/info page, no auth). Everything else (`lib/`, `tests/`, `bin/`) is either
+outside the web root or otherwise not meant to be requested directly; `config.php` holds the
+bearer token and should never be web-exposed.
 
-### deploy.sh
-
-If your server can't give this app its own document root (e.g. a single shared lighttpd/Apache
-docroot serving several apps as sibling directories, each with everything flattened at the top
-level — no separate `public/`), `deploy.sh` bridges the gap: it flattens `public/index.php`,
-`public/mcp.php`, `src/`, and `vendor/` into a target directory, leaving `config.php` there
-untouched. It re-runs `composer install --no-dev` first (if `composer` is available) so the
-deployed `vendor/` always matches `composer.lock` — the deploy target itself never needs Composer
-installed.
-
-```bash
-sudo mkdir -p /var/www/html/tusk && sudo chown "$(id -un):$(id -gn)" /var/www/html/tusk
-cp config.php.example /var/www/html/tusk/config.php   # first time only; then edit the token
-./deploy.sh                                                  # re-run after every change to src/ or public/*.php
-```
-
-Override the target with `DEPLOY_DIR=/some/other/path ./deploy.sh`. The script preserves the
-target directory's own permissions/ownership (`rsync --no-perms --no-owner --no-group`) so it
-doesn't accidentally lock the web server out — see the comment in `deploy.sh` if you're changing it.
+To deploy, sync the repo (excluding `.git`, `config.php`, and dev-only files like `tests/`) to the
+target directory and run `composer install --no-dev` there, or ship a pre-built `vendor/` alongside
+it. `config.php` on the target should be created once from `config.php.example` and never
+overwritten by subsequent syncs.
 
 ## Protocol
 
-Two web-exposed endpoints (both in `public/`):
+Two web-exposed endpoints (both at the repo root):
 
 - **`mcp.php`** — the actual MCP endpoint. JSON-RPC 2.0 over `POST`. Every `POST` requires
   `Authorization: Bearer <token>`. `GET mcp.php?health=1` is an unauthenticated, plain-text `ok`
@@ -80,7 +66,7 @@ Two web-exposed endpoints (both in `public/`):
 - **`index.php`** — a plain-English, unauthenticated HTML help page: the `mcp.php` endpoint URL,
   the auth header format, an example `curl` call, a ready-to-paste client JSON config, and the
   live `tools/list` output. Built from the same `ToolRegistry` the server itself uses via
-  `src/Guide.php`, so it can't drift out of sync with the real tool list. This is what you land on
+  `lib/Guide.php`, so it can't drift out of sync with the real tool list. This is what you land on
   opening the site root in a browser (`index-file.names` picks it as the default document).
 
 Supported JSON-RPC methods on `mcp.php`: `initialize`, `notifications/initialized`, `tools/list`,
@@ -157,11 +143,10 @@ full usage.
 
 ```
 bin/tusk.php         Standalone CLI client (talks the same JSON-RPC/HTTP protocol as any MCP client).
-public/
-  mcp.php                 The MCP endpoint: CORS, auth, JSON-RPC dispatch. All "real" traffic.
-  index.php               Plain-English help/info page only — no auth, no JSON-RPC, no CORS.
-src/
-  autoload.php            spl_autoload_register mapping Mcp\Foo\Bar -> src/Foo/Bar.php.
+mcp.php               The MCP endpoint: CORS, auth, JSON-RPC dispatch. All "real" traffic.
+index.php             Plain-English help/info page only — no auth, no JSON-RPC, no CORS.
+lib/
+  autoload.php            spl_autoload_register mapping Mcp\Foo\Bar -> lib/Foo/Bar.php.
   Config.php                Defaults merged with config.php / env; typed accessors.
   Auth.php                    Bearer-token check.
   JsonRpc.php                   Request parsing + success/error envelope builders.
@@ -183,13 +168,13 @@ src/
     WebFetchTool.php, WebSearchTool.php, FeedDiscoverTool.php, FeedFetchTool.php, UrlMetadataTool.php
 ```
 
-Data flow for a `tools/call`: `public/mcp.php` parses the JSON-RPC envelope → `Server::handle()`
+Data flow for a `tools/call`: `mcp.php` parses the JSON-RPC envelope → `Server::handle()`
 looks up the tool by name in a `ToolRegistry` built by `Bootstrap::buildToolRegistry()` → calls
 `Tool::call($arguments)` → the tool does its work (usually via `SafeFetcher`) and returns
 `{content: [...], isError?: bool}` → `Server` wraps that back into a JSON-RPC success envelope
 (tool errors are reported as `isError: true` inside a *successful* JSON-RPC response, not as a
 JSON-RPC-level error — that's reserved for protocol-level problems like an unknown method or a
-malformed request). `public/index.php` calls the same `Bootstrap::buildToolRegistry()` purely to
+malformed request). `index.php` calls the same `Bootstrap::buildToolRegistry()` purely to
 list tools on the help page — it never dispatches a `tools/call`.
 
 ## Adding a new tool
@@ -198,7 +183,7 @@ This is the main thing future changes to this repo will be: a new capability exp
 tool. Follow this checklist — it's the exact process `web_fetch`/`web_search`/`feed_discover`/
 `feed_fetch` were built with.
 
-1. **Implement `Mcp\Tools\ToolInterface`** in a new `src/Tools/YourTool.php`:
+1. **Implement `Mcp\Tools\ToolInterface`** in a new `lib/Tools/YourTool.php`:
    ```php
    final class YourTool implements ToolInterface
    {
@@ -224,18 +209,18 @@ tool. Follow this checklist — it's the exact process `web_fetch`/`web_search`/
      `$result['body']` with whatever's appropriate (`DOMDocument`/`DOMXPath` for HTML,
      `SimpleXMLElement` for XML/RSS/Atom).
    - If the tool needs new config (timeouts, default limits), add defaults in `Config::load()`
-     (`src/Config.php`) following the existing `<area>_<setting>` naming (`fetch_timeout`,
+     (`lib/Config.php`) following the existing `<area>_<setting>` naming (`fetch_timeout`,
      `search_default_max_results`, `feed_default_max_items`, ...), and read them via
      `$this->config->get('your_setting', $fallback)`.
 
-2. **Register it** in `src/Bootstrap.php` — two lines, alongside the existing tools:
+2. **Register it** in `lib/Bootstrap.php` — two lines, alongside the existing tools:
    ```php
    use Mcp\Tools\YourTool;
    ...
    $tools->register(new YourTool($config));
    ```
-   That's the *only* place to register a tool — both `public/mcp.php` (dispatch) and
-   `public/index.php` (help page) call `Bootstrap::buildToolRegistry()`, so they can't disagree
+   That's the *only* place to register a tool — both `mcp.php` (dispatch) and
+   `index.php` (help page) call `Bootstrap::buildToolRegistry()`, so they can't disagree
    about which tools exist. Nothing else needs to change; `ToolRegistry`, `Server`, and `Guide` are
    all tool-agnostic.
 
@@ -257,13 +242,13 @@ tool. Follow this checklist — it's the exact process `web_fetch`/`web_search`/
 5. **Run both suites** before considering the tool done:
    ```bash
    php tests/run.php                                                    # offline unit tests
-   php -S 127.0.0.1:8080 -t public &                                    # local dev server
+   php -S 127.0.0.1:8080 &                                              # local dev server
    cp config.php.example config.php && $EDITOR config.php               # set a token
    MCP_URL=http://127.0.0.1:8080/ MCP_TOKEN=<token> php tests/live.php  # end-to-end (site root, not mcp.php)
    ```
 
-6. **Deploy and re-verify** if you have a live instance: `./deploy.sh`, then re-run
-   `tests/live.php` against `MCP_URL` pointed at the real deployment.
+6. **Deploy and re-verify** if you have a live instance: sync the repo to the deploy target (see
+   "Running" above), then re-run `tests/live.php` against `MCP_URL` pointed at the real deployment.
 
 7. Mention the new tool in the "Ships with" list at the top of this README.
 
