@@ -23,36 +23,10 @@ connector. Ships with five tools:
   packages; this isn't a stack of framework dependencies, just the one library that would be
   wasteful to reimplement.
 
-## Setup
+## Setup, running, and deploying
 
-```bash
-composer install
-cp config.php.example config.php
-```
-
-Edit `config.php` and set a `token` — this is the bearer token clients must send. Alternatively
-set the `MCP_TOKEN` environment variable instead of putting it in `config.php`. The server refuses
-to authenticate any request if no token is configured (see `lib/Auth.php`) — it will not silently
-run open.
-
-## Running
-
-Local dev:
-
-```bash
-php -S 127.0.0.1:8080
-```
-
-Production: point PHP-FPM/Apache/Nginx's document root at the repo root. Two files there are
-web-exposed: `mcp.php` (the actual MCP endpoint — auth, CORS, JSON-RPC) and `index.php` (a
-plain-English help/info page, no auth). Everything else (`lib/`, `tests/`, `bin/`) is either
-outside the web root or otherwise not meant to be requested directly; `config.php` holds the
-bearer token and should never be web-exposed.
-
-To deploy, sync the repo (excluding `.git`, `config.php`, and dev-only files like `tests/`) to the
-target directory and run `composer install --no-dev` there, or ship a pre-built `vendor/` alongside
-it. `config.php` on the target should be created once from `config.php.example` and never
-overwritten by subsequent syncs.
+See [`INSTALL.md`](INSTALL.md) for setup, running locally, deploying, connecting a client, and
+verifying an install/deploy with the test suites.
 
 ## Protocol
 
@@ -92,24 +66,10 @@ curl -X POST http://127.0.0.1:8080/mcp.php \
 ## Client configuration
 
 For MCP clients that read a JSON config (Claude Code, Claude Desktop, and others using the same
-`mcpServers` convention), copy `mcp.json.example` and fill in your URL/token:
-
-```json
-{
-  "mcpServers": {
-    "tusk": {
-      "type": "http",
-      "url": "https://your-host/tusk/mcp.php",
-      "headers": {
-        "Authorization": "Bearer <token>"
-      }
-    }
-  }
-}
-```
-
-Merge that `mcpServers` entry into the client's own config file (e.g. `.mcp.json` in a project, or
-Claude Desktop's config). Claude Code can also add it directly from the CLI:
+`mcpServers` convention), copy `mcp.json.example` to `mcp.json` and fill in your URL/token — see
+[`INSTALL.md`](INSTALL.md#connect-a-client) for the shape of that file. Merge its `mcpServers`
+entry into the client's own config file (e.g. `.mcp.json` in a project, or Claude Desktop's
+config). Claude Code can also add it directly from the CLI:
 
 ```bash
 claude mcp add-json tusk '{"type":"http","url":"https://your-host/tusk/mcp.php","headers":{"Authorization":"Bearer <token>"}}'
