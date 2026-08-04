@@ -29,6 +29,7 @@ final class Config
             'search_brave_api_key' => getenv('BRAVE_API_KEY') ?: '',
 
             'feed_default_max_items' => 20,
+            'sitemap_default_max_urls' => 50,
 
             'cors_allow_origin' => '*',
         ];

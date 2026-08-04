@@ -5,6 +5,7 @@ namespace Mcp;
 
 use Mcp\Tools\FeedDiscoverTool;
 use Mcp\Tools\FeedFetchTool;
+use Mcp\Tools\SitemapFetchTool;
 use Mcp\Tools\UrlMetadataTool;
 use Mcp\Tools\WebFetchTool;
 use Mcp\Tools\WebSearchTool;
@@ -23,6 +24,7 @@ final class Bootstrap
         $tools->register(new FeedDiscoverTool($config));
         $tools->register(new FeedFetchTool($config));
         $tools->register(new UrlMetadataTool($config));
+        $tools->register(new SitemapFetchTool($config));
 
         return $tools;
     }

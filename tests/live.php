@@ -155,6 +155,7 @@ check('lists web_fetch', in_array('web_fetch', $toolNames, true), implode(',', $
 check('lists web_search', in_array('web_search', $toolNames, true), implode(',', $toolNames));
 check('lists feed_discover', in_array('feed_discover', $toolNames, true), implode(',', $toolNames));
 check('lists feed_fetch', in_array('feed_fetch', $toolNames, true), implode(',', $toolNames));
+check('lists sitemap_fetch', in_array('sitemap_fetch', $toolNames, true), implode(',', $toolNames));
 check('lists url_metadata', in_array('url_metadata', $toolNames, true), implode(',', $toolNames));
 
 echo "\ntools/call web_fetch\n";
@@ -241,6 +242,41 @@ check(
     'feed_fetch blocks loopback URL',
     ($feedFetchSsrf['json']['result']['isError'] ?? false) === true,
     json_encode($feedFetchSsrf['json'])
+);
+
+echo "\ntools/call sitemap_fetch\n";
+$sitemap = rpc($rpcUrl, $token, 'tools/call', [
+    'name' => 'sitemap_fetch',
+    'arguments' => ['url' => 'https://www.php.net/sitemap.xml', 'max_urls' => 5],
+]);
+$sitemapText = $sitemap['json']['result']['content'][0]['text'] ?? '';
+$sitemapJson = json_decode($sitemapText, true);
+check('sitemap_fetch is not flagged as error', empty($sitemap['json']['result']['isError']), $sitemapText);
+check('sitemap_fetch reports kind urlset', ($sitemapJson['kind'] ?? null) === 'urlset', $sitemapText);
+check(
+    'sitemap_fetch returns entries',
+    is_array($sitemapJson['entries'] ?? null) && count($sitemapJson['entries']) > 0,
+    $sitemapText
+);
+check(
+    'sitemap_fetch respects max_urls',
+    is_array($sitemapJson['entries'] ?? null) && count($sitemapJson['entries']) <= 5,
+    $sitemapText
+);
+check(
+    'sitemap_fetch entry has a url',
+    !empty($sitemapJson['entries'][0]['url'] ?? ''),
+    $sitemapText
+);
+
+$sitemapSsrf = rpc($rpcUrl, $token, 'tools/call', [
+    'name' => 'sitemap_fetch',
+    'arguments' => ['url' => 'http://127.0.0.1/'],
+]);
+check(
+    'sitemap_fetch blocks loopback URL',
+    ($sitemapSsrf['json']['result']['isError'] ?? false) === true,
+    json_encode($sitemapSsrf['json'])
 );
 
 echo "\ntools/call url_metadata\n";

@@ -25,6 +25,9 @@ return [
     // feed_fetch settings.
     // 'feed_default_max_items' => 20,
 
+    // sitemap_fetch settings.
+    // 'sitemap_default_max_urls' => 50,
+
     // Set to a specific origin instead of '*' to restrict which pages' JS may read
     // mcp.php's responses cross-origin (the bearer token is still required either way).
     // 'cors_allow_origin' => '*',

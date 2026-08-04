@@ -34,8 +34,8 @@ sufficient, since it deliberately never touches the network and can't catch inte
 ## Adding a new MCP tool
 
 Full step-by-step is in `README.md` under "Adding a new tool" — follow it exactly, it reflects
-how every existing tool (`web_fetch`, `web_search`, `feed_discover`, `feed_fetch`) was actually
-built and tested. Short version:
+how every existing tool (`web_fetch`, `web_search`, `feed_discover`, `feed_fetch`,
+`sitemap_fetch`) was actually built and tested. Short version:
 
 1. `lib/Tools/YourTool.php` implementing `ToolInterface` (`name`, `description`, `inputSchema`,
    `call`). Throw on bad input instead of handling errors yourself — `Server` catches it.

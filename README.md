@@ -2,7 +2,7 @@
 
 A small, minimal-dependency [MCP](https://modelcontextprotocol.io) server in PHP 7.4, exposed over
 plain HTTP (streamable-HTTP / "WebMCP" transport, not stdio) so it can be added as a remote MCP
-connector. Ships with five tools:
+connector. Ships with six tools:
 
 - **web_fetch** — fetch a URL over HTTP(S) and return its content. For HTML pages, extracts the
   main article content (via Readability) as Markdown, falling back to plain text of the whole page
@@ -11,6 +11,8 @@ connector. Ships with five tools:
   HTML endpoint by default, or the Brave Search API if configured (see `search_provider` below).
 - **feed_discover** — fetch a web page and return the RSS/Atom feed URLs it advertises.
 - **feed_fetch** — fetch an RSS/Atom feed URL and return its items as JSON.
+- **sitemap_fetch** — fetch a `sitemap.xml` URL and return its entries as JSON, or (for a sitemap
+  index) the list of sub-sitemap URLs.
 - **url_metadata** — fetch a page's title, description, Open Graph/Twitter Card tags, favicon,
   and canonical URL, without fetching the full body text.
 
@@ -136,7 +138,8 @@ lib/
                                       (not a general-purpose converter). Used by WebFetchTool.
   Tools/
     ToolInterface.php                Contract every tool implements.
-    WebFetchTool.php, WebSearchTool.php, FeedDiscoverTool.php, FeedFetchTool.php, UrlMetadataTool.php
+    WebFetchTool.php, WebSearchTool.php, FeedDiscoverTool.php, FeedFetchTool.php,
+    SitemapFetchTool.php, UrlMetadataTool.php
 ```
 
 Data flow for a `tools/call`: `mcp.php` parses the JSON-RPC envelope → `Server::handle()`
@@ -152,7 +155,7 @@ list tools on the help page — it never dispatches a `tools/call`.
 
 This is the main thing future changes to this repo will be: a new capability exposed as an MCP
 tool. Follow this checklist — it's the exact process `web_fetch`/`web_search`/`feed_discover`/
-`feed_fetch` were built with.
+`feed_fetch`/`sitemap_fetch` were built with.
 
 1. **Implement `Mcp\Tools\ToolInterface`** in a new `lib/Tools/YourTool.php`:
    ```php
@@ -254,6 +257,12 @@ tool. Follow this checklist — it's the exact process `web_fetch`/`web_search`/
 - **feed_fetch** supports RSS 2.0 (`<rss><channel><item>`) and Atom (`<feed><entry>`) via
   `SimpleXMLElement`. RSS 1.0/RDF feeds and JSON Feed are not handled and will raise an error
   naming the unsupported root element.
+- **sitemap_fetch** supports the standard `<urlset>` (entries) and `<sitemapindex>` (sub-sitemap
+  list) root elements from the [sitemaps.org](https://www.sitemaps.org/protocol.html) protocol —
+  the response's `kind` field tells you which one you got. Sitemap indexes aren't recursed
+  automatically; call `sitemap_fetch` again on a sub-sitemap URL to get its entries. Sitemap
+  URLs can be large; `max_urls` (default `sitemap_default_max_urls`, 50) truncates the result
+  rather than returning every entry.
 - **url_metadata** prefers Open Graph tags (`og:title`, `og:description`) over the plain
   `<title>`/`<meta name="description">` fallbacks, and falls back to `<origin>/favicon.ico` when
   no `<link rel="icon">` is present (a guess, since most sites rely on that browser convention

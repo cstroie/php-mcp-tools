@@ -58,5 +58,8 @@ require __DIR__ . '/FeedFetchToolTest.php';
 echo "UrlMetadataTool\n";
 require __DIR__ . '/UrlMetadataToolTest.php';
 
+echo "SitemapFetchTool\n";
+require __DIR__ . '/SitemapFetchToolTest.php';
+
 echo "\n{$passed} passed, {$failures} failed\n";
 exit($failures > 0 ? 1 : 0);
