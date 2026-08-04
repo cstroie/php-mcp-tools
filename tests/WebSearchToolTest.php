@@ -36,7 +36,7 @@ $braveJson = json_encode([
     'web' => [
         'results' => [
             ['title' => 'Brave Title', 'url' => 'https://example.com/brave', 'description' => 'A <strong>snippet</strong>.'],
-            ['title' => 'Second', 'url' => 'https://example.com/second', 'description' => 'Second snippet.'],
+            ['title' => 'PHP&#x27;s SDK', 'url' => 'https://example.com/second', 'description' => 'Uses &quot;quotes&quot; &amp; entities.'],
         ],
     ],
 ]);
@@ -46,6 +46,11 @@ check('parseBraveResults extracts both results', count($braveResults) === 2);
 check('parseBraveResults extracts title', $braveResults[0]['title'] === 'Brave Title');
 check('parseBraveResults extracts url', $braveResults[0]['url'] === 'https://example.com/brave');
 check('parseBraveResults strips HTML from snippet', $braveResults[0]['snippet'] === 'A snippet.');
+check('parseBraveResults decodes HTML entities in title', $braveResults[1]['title'] === "PHP's SDK");
+check(
+    'parseBraveResults decodes HTML entities in snippet',
+    $braveResults[1]['snippet'] === 'Uses "quotes" & entities.'
+);
 
 $braveCapped = invokePrivate($braveTool, 'parseBraveResults', [$braveJson, 1]);
 check('parseBraveResults respects max_results', count($braveCapped) === 1);

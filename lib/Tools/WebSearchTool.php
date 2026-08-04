@@ -102,9 +102,9 @@ final class WebSearchTool implements ToolInterface
             CURLOPT_TIMEOUT => (int) $this->config->get('search_timeout', 10),
             CURLOPT_CONNECTTIMEOUT => (int) $this->config->get('search_timeout', 10),
             CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
+            CURLOPT_ENCODING => '',
             CURLOPT_HTTPHEADER => [
                 'Accept: application/json',
-                'Accept-Encoding: gzip',
                 'X-Subscription-Token: ' . $apiKey,
             ],
         ]);
@@ -149,15 +149,18 @@ final class WebSearchTool implements ToolInterface
                 continue;
             }
 
-            $title = trim((string) ($entry['title'] ?? ''));
+            $title = html_entity_decode(trim((string) ($entry['title'] ?? '')), ENT_QUOTES | ENT_HTML5);
             $url = trim((string) ($entry['url'] ?? ''));
-            $snippet = trim((string) ($entry['description'] ?? ''));
+            $snippet = html_entity_decode(
+                strip_tags((string) ($entry['description'] ?? '')),
+                ENT_QUOTES | ENT_HTML5
+            );
 
             if ($title === '' || $url === '') {
                 continue;
             }
 
-            $results[] = ['title' => $title, 'url' => $url, 'snippet' => strip_tags($snippet)];
+            $results[] = ['title' => $title, 'url' => $url, 'snippet' => trim($snippet)];
         }
 
         return $results;
