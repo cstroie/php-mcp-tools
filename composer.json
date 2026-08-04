@@ -1,0 +1,13 @@
+{
+    "name": "cstroie/tusk",
+    "description": "Tusk MCP tools server",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": ">=7.4",
+        "andreskrey/readability.php": "^2.1"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

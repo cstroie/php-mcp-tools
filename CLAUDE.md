@@ -6,13 +6,16 @@ conventions, and the things that are easy to get wrong here.
 
 ## What this is
 
-A dependency-free PHP 7.4 MCP server exposed over HTTP (JSON-RPC 2.0), not stdio. Two front
+A minimal-dependency PHP 7.4 MCP server exposed over HTTP (JSON-RPC 2.0), not stdio. Two front
 controllers in `public/`: `mcp.php` (the real endpoint — auth, CORS, JSON-RPC dispatch) and
 `index.php` (a plain help/info page, no auth). Both build their tool list from the same
 `Mcp\Bootstrap::buildToolRegistry()`. Tools live in `src/Tools/`, each implementing
-`Mcp\Tools\ToolInterface`. No Composer, no vendored libraries — stick to PHP 7.4 core + the
-`curl`/`dom`/`simplexml` extensions. Do not introduce a dependency manager or third-party package
-without asking first; "zero dependencies" is a deliberate project constraint, not an oversight.
+`Mcp\Tools\ToolInterface`. The project deliberately avoids a stack of dependencies — one exception
+exists (`andreskrey/readability.php`, via Composer, used by `WebFetchTool` for article extraction;
+see README "Credits" for why that specific package/version was picked). Do not add another
+Composer package or reach for a framework without asking first; "hand-written, minimal
+dependencies" is a deliberate constraint, not an oversight — the bar for a new dependency is high,
+not zero.
 
 ## Commands
 
@@ -82,3 +85,12 @@ built and tested. Short version:
   that's why `deploy.sh` flattens `public/` away instead of the repo being served with its natural
   `public/`-as-docroot layout. If you ever deploy somewhere with a real per-app document root,
   point it at `public/` directly and skip `deploy.sh` entirely.
+- **`vendor/` is gitignored and rebuilt by `deploy.sh` from `composer.lock`** (`composer install
+  --no-dev`) before every deploy — the deploy target itself never runs Composer. If you add or
+  bump a Composer dependency, run `composer update`/`composer require` locally so `composer.lock`
+  changes, commit the lock file, and re-run `./deploy.sh`; don't hand-edit `composer.lock`.
+- **`Readability::parse()` almost never throws or signals "not an article."** It does best-effort
+  extraction on nearly any page with *some* body text and only raises `ParseException` on truly
+  empty/broken HTML (no `<body>` content at all) — see `WebFetchTool::extractArticle()`. Don't
+  assume a null/exception path will catch "this isn't really an article page"; it won't, in
+  practice the fallback to whole-page text is rarely hit.

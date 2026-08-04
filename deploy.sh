@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Flattens public/{index,mcp}.php + src/ (the layout this repo uses for
-# portability) into the flat layout this box's lighttpd expects (index.php,
-# mcp.php, and src/ as siblings, no public/ subdir — matches the other apps
-# under /var/www/html).
+# Flattens public/{index,mcp}.php + src/ + vendor/ (the layout this repo uses
+# for portability) into the flat layout this box's lighttpd expects (index.php,
+# mcp.php, src/, and vendor/ as siblings, no public/ subdir — matches the
+# other apps under /var/www/html).
 # Never touches config.php on the target: that holds the live bearer token
 # and isn't part of the repo.
 set -euo pipefail
@@ -26,6 +26,21 @@ for f in index.php mcp.php; do
     sed "s#__DIR__ . '/../src/autoload.php'#__DIR__ . '/src/autoload.php'#" \
         "$REPO_DIR/public/$f" > "$STAGE_DIR/$f"
 done
+
+# Composer-managed dependencies (currently just andreskrey/readability.php).
+# Re-install from composer.lock so the deployed vendor/ always matches the
+# repo, then ship it — the deploy target itself never runs Composer.
+if [ -f "$REPO_DIR/composer.json" ]; then
+    if command -v composer >/dev/null 2>&1; then
+        (cd "$REPO_DIR" && composer install --no-dev --no-interaction --quiet)
+    fi
+    if [ -d "$REPO_DIR/vendor" ]; then
+        cp -r "$REPO_DIR/vendor" "$STAGE_DIR/vendor"
+    else
+        echo "warning: composer.json present but vendor/ is missing and composer wasn't found." >&2
+        echo "Composer-managed features (Readability article extraction in web_fetch) will be unavailable on the deployed target." >&2
+    fi
+fi
 
 # --no-perms/--no-owner/--no-group: don't let rsync overwrite DEPLOY_DIR's own
 # mode/ownership (needed for www-data to traverse it) with the staging dir's.

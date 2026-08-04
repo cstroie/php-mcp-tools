@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 namespace Mcp\Tools;
 
+use andreskrey\Readability\Configuration;
+use andreskrey\Readability\ParseException;
+use andreskrey\Readability\Readability;
 use Mcp\Config;
 use Mcp\Http\SafeFetcher;
 
@@ -24,7 +27,10 @@ final class WebFetchTool implements ToolInterface
 
     public function description(): string
     {
-        return 'Fetch a web page over HTTP(S) and return its text content.';
+        return 'Fetch a web page over HTTP(S) and return its text content. For HTML pages, '
+            . 'extracts the main article/content (via Readability) instead of the full page '
+            . 'including navigation, ads, and boilerplate, falling back to the raw page text if '
+            . 'no clear article content is found.';
     }
 
     public function inputSchema(): array
@@ -58,7 +64,7 @@ final class WebFetchTool implements ToolInterface
         $result = $this->fetcher->fetch($url);
         $contentType = $result['headers']['content-type'] ?? '';
 
-        $text = $this->extractText($result['body'], $contentType);
+        $text = $this->extractText($result['body'], $contentType, $result['url']);
         $truncated = false;
         if (mb_strlen($text) > $maxLength) {
             $text = mb_substr($text, 0, $maxLength);
@@ -77,13 +83,57 @@ final class WebFetchTool implements ToolInterface
         ];
     }
 
-    private function extractText(string $body, string $contentType): string
+    private function extractText(string $body, string $contentType, string $url): string
     {
         if (stripos($contentType, 'html') === false) {
             return trim($body);
         }
 
-        $text = preg_replace('#<(script|style)\b[^>]*>.*?</\1>#is', ' ', $body);
+        $article = $this->extractArticle($body, $url);
+
+        return $article ?? $this->htmlToPlainText($body);
+    }
+
+    /**
+     * Uses Readability (Mozilla's Readability.js algorithm, ported to PHP by
+     * andreskrey/readability.php) to isolate the main article content from
+     * navigation/ads/boilerplate. Returns null if it can't find an article
+     * (e.g. non-article pages like a homepage or search results) so the
+     * caller can fall back to the whole page's text.
+     */
+    private function extractArticle(string $html, string $url): ?string
+    {
+        $configuration = new Configuration();
+        $configuration->setFixRelativeURLs(true);
+        $configuration->setOriginalURL($url);
+        $configuration->setSummonCthulhu(true);
+
+        $readability = new Readability($configuration);
+
+        try {
+            $readability->parse($html);
+        } catch (ParseException $e) {
+            return null;
+        }
+
+        $content = $readability->getContent();
+        if ($content === null || trim($content) === '') {
+            return null;
+        }
+
+        $text = $this->htmlToPlainText($content);
+        if ($text === '') {
+            return null;
+        }
+
+        $title = trim((string) $readability->getTitle());
+
+        return $title !== '' ? "{$title}\n\n{$text}" : $text;
+    }
+
+    private function htmlToPlainText(string $html): string
+    {
+        $text = preg_replace('#<(script|style)\b[^>]*>.*?</\1>#is', ' ', $html);
         $text = preg_replace('#<!--.*?-->#s', ' ', $text ?? '');
         $text = preg_replace('#<[^>]+>#', ' ', $text ?? '');
         $text = html_entity_decode($text ?? '', ENT_QUOTES | ENT_HTML5);

@@ -1,10 +1,11 @@
 # Tusk
 
-A small, dependency-free [MCP](https://modelcontextprotocol.io) server in PHP 7.4, exposed over
+A small, minimal-dependency [MCP](https://modelcontextprotocol.io) server in PHP 7.4, exposed over
 plain HTTP (streamable-HTTP / "WebMCP" transport, not stdio) so it can be added as a remote MCP
 connector. Ships with five tools:
 
-- **web_fetch** — fetch a URL over HTTP(S) and return its text content.
+- **web_fetch** — fetch a URL over HTTP(S) and return its text content, extracting the main
+  article content (via Readability) for HTML pages when possible.
 - **web_search** — search the web via DuckDuckGo's HTML endpoint and return results.
 - **feed_discover** — fetch a web page and return the RSS/Atom feed URLs it advertises.
 - **feed_fetch** — fetch an RSS/Atom feed URL and return its items as JSON.
@@ -13,12 +14,18 @@ connector. Ships with five tools:
 
 ## Requirements
 
-- PHP 7.4+ with the `curl`, `dom`, and `simplexml` extensions (all part of the default PHP build).
-- No Composer, no external packages.
+- PHP 7.4+ with the `curl`, `dom`, `mbstring`, and `simplexml` extensions (all part of the default
+  PHP build).
+- [Composer](https://getcomposer.org/) — used for exactly one dependency
+  ([`andreskrey/readability.php`](https://github.com/andreskrey/readability.php), see
+  [Credits](#credits)). Everything else in this codebase is still hand-written with no other
+  packages; this isn't a stack of framework dependencies, just the one library that would be
+  wasteful to reimplement.
 
 ## Setup
 
 ```bash
+composer install
 cp config.php.example config.php
 ```
 
@@ -45,7 +52,10 @@ web root or is otherwise not directly requestable.
 If your server can't give this app its own document root (e.g. a single shared lighttpd/Apache
 docroot serving several apps as sibling directories, each with everything flattened at the top
 level — no separate `public/`), `deploy.sh` bridges the gap: it flattens `public/index.php`,
-`public/mcp.php`, and `src/` into a target directory, leaving `config.php` there untouched.
+`public/mcp.php`, `src/`, and `vendor/` into a target directory, leaving `config.php` there
+untouched. It re-runs `composer install --no-dev` first (if `composer` is available) so the
+deployed `vendor/` always matches `composer.lock` — the deploy target itself never needs Composer
+installed.
 
 ```bash
 sudo mkdir -p /var/www/html/tusk && sudo chown "$(id -un):$(id -gn)" /var/www/html/tusk
@@ -258,7 +268,14 @@ tool. Follow this checklist — it's the exact process `web_fetch`/`web_search`/
 - **web_fetch** blocks requests to loopback/private/link-local addresses (SSRF guard), resolves
   the host once and pins curl to that IP (`CURLOPT_RESOLVE`) to avoid DNS-rebinding between the
   safety check and the actual connection, and caps response size and redirect count. This logic
-  lives in `Mcp\Http\SafeFetcher` and is shared by every URL-fetching tool.
+  lives in `Mcp\Http\SafeFetcher` and is shared by every URL-fetching tool. For HTML pages, it
+  first tries Readability article extraction (see [Credits](#credits)) to strip navigation/ads/
+  boilerplate; Readability does best-effort extraction on almost any page with *some* body content
+  (it only gives up on truly empty/broken HTML), so the plain full-page-text fallback is rarely
+  hit in practice — and on heavily templated non-article pages (large SPA-style sites, some
+  Wikipedia pages) the "best effort" can occasionally pull in unrelated embedded data instead of
+  the intended content. This is an inherent limitation of the algorithm, not a bug in the
+  integration.
 - **web_search** scrapes DuckDuckGo's no-JS HTML endpoint (`html.duckduckgo.com/html/`), which
   requires a browser-like `User-Agent` or DuckDuckGo returns `403`. This is best-effort scraping,
   not an official API — it can break if DuckDuckGo changes their markup. `ToolInterface` is
@@ -274,6 +291,18 @@ tool. Follow this checklist — it's the exact process `web_fetch`/`web_search`/
   `<title>`/`<meta name="description">` fallbacks, and falls back to `<origin>/favicon.ico` when
   no `<link rel="icon">` is present (a guess, since most sites rely on that browser convention
   rather than declaring it explicitly — it is not verified to actually exist).
+
+## Credits
+
+`web_fetch`'s article extraction uses
+[`andreskrey/readability.php`](https://github.com/andreskrey/readability.php) v2.1, a PHP port of
+[Mozilla's Readability.js](https://github.com/mozilla/readability) (the algorithm behind Firefox's
+Reader View), which is itself derived from Arc90's original 2010 Readability project. Licensed
+Apache-2.0. Note: this package is archived/unmaintained since 2021 — it was chosen over its
+actively maintained fork ([`fivefilters/readability.php`](https://github.com/fivefilters/readability.php))
+because that fork's current release requires PHP 8.4+, while this older, frozen version still runs
+fine on PHP 7.4 with only one extra dependency (`psr/log`). Worth revisiting if this project's PHP
+requirement is ever raised.
 
 ## Tests
 
