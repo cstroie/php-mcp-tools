@@ -1,4 +1,5 @@
 /config.php
+/mcp.json
 /vendor/
 .DS_Store
 *.log
