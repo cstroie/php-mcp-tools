@@ -30,3 +30,7 @@ check('check() rejects a wrong random-string part', !Auth::check($config));
 unset($_SERVER['HTTP_AUTHORIZATION']);
 check('check() rejects a missing Authorization header', !Auth::check($config));
 check('clientId() returns null with no Authorization header', Auth::clientId() === null);
+
+$openConfig = new Config(['token' => '']);
+unset($_SERVER['HTTP_AUTHORIZATION']);
+check('check() allows requests when no token is configured', Auth::check($openConfig));

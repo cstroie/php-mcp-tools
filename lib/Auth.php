@@ -9,8 +9,8 @@ final class Auth
     {
         $expected = $config->token();
         if ($expected === '') {
-            // No token configured — refuse to run open on a network-reachable server.
-            return false;
+            // No token configured — authorization is disabled, allow all requests.
+            return true;
         }
 
         $header = self::bearerHeader();
