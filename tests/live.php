@@ -189,6 +189,34 @@ $badScheme = rpc($rpcUrl, $token, 'tools/call', [
 ]);
 check('blocks non-http(s) scheme', ($badScheme['json']['result']['isError'] ?? false) === true, json_encode($badScheme['json']));
 
+$headerEcho = rpc($rpcUrl, $token, 'tools/call', [
+    'name' => 'web_fetch',
+    'arguments' => [
+        'url' => 'https://postman-echo.com/headers',
+        'headers' => ['X-Tusk-Test' => 'live-header'],
+        'cookies' => 'tusk_test=live-cookie',
+    ],
+]);
+$headerEchoText = $headerEcho['json']['result']['content'][0]['text'] ?? '';
+check('web_fetch sends a custom header', strpos($headerEchoText, 'x-tusk-test') !== false, substr($headerEchoText, 0, 300));
+check('web_fetch sends the cookie', strpos($headerEchoText, 'tusk_test=live-cookie') !== false, substr($headerEchoText, 0, 300));
+
+// Cookie must NOT survive a redirect to a different host (SSRF-adjacent
+// session-leak guard — see SafeFetcher::stripCrossHostHeaders).
+$crossHostRedirect = rpc($rpcUrl, $token, 'tools/call', [
+    'name' => 'web_fetch',
+    'arguments' => [
+        'url' => 'https://postman-echo.com/redirect-to?url=' . urlencode('https://httpbingo.org/headers'),
+        'cookies' => 'tusk_test=should-not-cross-hosts',
+    ],
+]);
+$crossHostText = $crossHostRedirect['json']['result']['content'][0]['text'] ?? '';
+check(
+    'web_fetch does not replay the cookie across a cross-host redirect',
+    strpos($crossHostText, 'should-not-cross-hosts') === false,
+    substr($crossHostText, 0, 300)
+);
+
 echo "\ntools/call web_search\n";
 $search = rpc($rpcUrl, $token, 'tools/call', [
     'name' => 'web_search',

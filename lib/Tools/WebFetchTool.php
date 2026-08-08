@@ -32,7 +32,12 @@ final class WebFetchTool implements ToolInterface
             . 'the main article/content (via Readability) instead of the full page including '
             . 'navigation, ads, and boilerplate, and returns it as Markdown (headings, lists, '
             . 'links, code blocks preserved) — falling back to plain text of the raw page if no '
-            . 'clear article content is found.';
+            . 'clear article content is found. Sends a browser-like default header set (Accept, '
+            . 'Accept-Language, User-Agent, etc.) already; use headers/cookies to override them or '
+            . 'to replay a session/consent cookie from your own browser for sites that need one. '
+            . 'This cannot solve a JS-executed challenge (e.g. a Cloudflare interstitial) — only a '
+            . 'real browser can — but it does get past sites that merely check for a normal-looking '
+            . 'request or a specific cookie.';
     }
 
     public function inputSchema(): array
@@ -49,6 +54,21 @@ final class WebFetchTool implements ToolInterface
                     'description' => 'Maximum number of characters to return (default '
                         . $this->config->get('fetch_default_max_length') . ').',
                 ],
+                'headers' => [
+                    'type' => 'object',
+                    'additionalProperties' => ['type' => 'string'],
+                    'description' => 'Extra/override request headers as name→value pairs (e.g. '
+                        . '{"Accept-Language": "fr-FR"}). Merged over the default browser-like '
+                        . 'header set; Host cannot be overridden. Dropped if a redirect leaves the '
+                        . 'requested host.',
+                ],
+                'cookies' => [
+                    'type' => 'string',
+                    'description' => 'Cookie header value to send, e.g. "session=abc123; theme=dark" '
+                        . '— useful for replaying a cookie captured from your own logged-in browser '
+                        . 'session. Only sent to the requested host, and only followed across a '
+                        . 'redirect that stays on that host.',
+                ],
             ],
             'required' => ['url'],
         ];
@@ -63,7 +83,21 @@ final class WebFetchTool implements ToolInterface
 
         $maxLength = (int) ($arguments['max_length'] ?? $this->config->get('fetch_default_max_length'));
 
-        $result = $this->fetcher->fetch($url);
+        $options = [];
+        if (isset($arguments['headers'])) {
+            if (!is_array($arguments['headers'])) {
+                throw new \InvalidArgumentException('headers must be an object of name/value pairs');
+            }
+            $options['headers'] = $arguments['headers'];
+        }
+        if (isset($arguments['cookies'])) {
+            if (!is_string($arguments['cookies'])) {
+                throw new \InvalidArgumentException('cookies must be a string');
+            }
+            $options['cookies'] = $arguments['cookies'];
+        }
+
+        $result = $this->fetcher->fetch($url, null, null, null, $options);
         $contentType = $result['headers']['content-type'] ?? '';
 
         $text = $this->extractText($result['body'], $contentType, $result['url']);

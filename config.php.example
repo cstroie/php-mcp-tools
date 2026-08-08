@@ -14,6 +14,18 @@ return [
     // 'fetch_max_bytes' => 2 * 1024 * 1024,
     // 'fetch_max_redirects' => 3,
     // 'fetch_default_max_length' => 8000,
+    // Sent on every SafeFetcher request alongside user_agent, so requests look
+    // like a real browser to sites that check for one. A tool call's own
+    // `headers` argument overrides any of these per-request.
+    // 'fetch_default_headers' => [
+    //     'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+    //     'Accept-Language' => 'en-US,en;q=0.9',
+    //     'Upgrade-Insecure-Requests' => '1',
+    //     'Sec-Fetch-Dest' => 'document',
+    //     'Sec-Fetch-Mode' => 'navigate',
+    //     'Sec-Fetch-Site' => 'none',
+    //     'Sec-Fetch-User' => '?1',
+    // ],
 
     // web_search settings.
     // 'search_timeout' => 10,

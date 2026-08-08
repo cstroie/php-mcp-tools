@@ -51,3 +51,23 @@ check('extractText uses the article extraction path for real HTML pages', strpos
 
 $fallbackText = invokePrivate($tool, 'extractText', [$emptyBody, 'text/html', 'https://example.com/']);
 check('extractText falls back to whole-page text when no article is found', $fallbackText === '');
+
+$schema = $tool->inputSchema();
+check('inputSchema declares headers property', isset($schema['properties']['headers']));
+check('inputSchema declares cookies property', isset($schema['properties']['cookies']));
+
+$threw = false;
+try {
+    $tool->call(['url' => 'https://example.com/', 'headers' => 'not-an-object']);
+} catch (\InvalidArgumentException $e) {
+    $threw = true;
+}
+check('call() rejects non-object headers', $threw);
+
+$threw = false;
+try {
+    $tool->call(['url' => 'https://example.com/', 'cookies' => ['not' => 'a string']]);
+} catch (\InvalidArgumentException $e) {
+    $threw = true;
+}
+check('call() rejects non-string cookies', $threw);

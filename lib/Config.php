@@ -19,6 +19,20 @@ final class Config
             'token' => getenv('MCP_TOKEN') ?: '',
             'user_agent' => 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
                 . '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            // Sent on every SafeFetcher request so a plain curl-shaped request doesn't
+            // stand out to sites that check for a browser-like header set (Accept-Encoding
+            // is deliberately absent here — CURLOPT_ENCODING owns that header so curl can
+            // transparently decompress the response).
+            'fetch_default_headers' => [
+                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,'
+                    . 'image/avif,image/webp,*/*;q=0.8',
+                'Accept-Language' => 'en-US,en;q=0.9',
+                'Upgrade-Insecure-Requests' => '1',
+                'Sec-Fetch-Dest' => 'document',
+                'Sec-Fetch-Mode' => 'navigate',
+                'Sec-Fetch-Site' => 'none',
+                'Sec-Fetch-User' => '?1',
+            ],
             'fetch_timeout' => 10,
             'fetch_max_bytes' => 2 * 1024 * 1024,
             'fetch_max_redirects' => 3,
@@ -56,5 +70,14 @@ final class Config
     public function userAgent(): string
     {
         return (string) $this->get('user_agent');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function defaultHeaders(): array
+    {
+        $headers = $this->get('fetch_default_headers', []);
+        return is_array($headers) ? $headers : [];
     }
 }

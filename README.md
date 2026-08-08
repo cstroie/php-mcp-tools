@@ -6,7 +6,10 @@ connector. Ships with six tools:
 
 - **web_fetch** — fetch a URL over HTTP(S) and return its content. For HTML pages, extracts the
   main article content (via Readability) as Markdown, falling back to plain text of the whole page
-  when no clear article is found.
+  when no clear article is found. Sends a browser-like default header set (Accept, Accept-Language,
+  User-Agent, etc.); optional `headers`/`cookies` arguments can override/add to that, e.g. to
+  replay a session cookie from your own browser. This does not defeat a JS-executed challenge
+  (curl can't run JS), but does get past sites that just check for a normal-looking request.
 - **web_search** — search the web and return results (title, url, snippet). Uses DuckDuckGo's
   HTML endpoint by default, or the Brave Search API if configured (see `search_provider` below).
 - **feed_discover** — fetch a web page and return the RSS/Atom feed URLs it advertises.
